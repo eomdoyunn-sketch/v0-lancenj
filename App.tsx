@@ -421,54 +421,69 @@ const App: React.FC = () => {
     }
   };
 
-  const handleSaveProgram = async () => {
-    const totalAmount = Number(programFormData.totalAmount);
-    const totalSessions = Number(programFormData.totalSessions);
-
-    if (!programFormData.branchId) {
-        alert("지점을 선택해주세요.");
-        return;
-    }
-     if (programFormData.memberIds.length === 0) {
-        alert("회원을 한 명 이상 선택해주세요.");
-        return;
-    }
-
-    const programData = {
-        memberIds: programFormData.memberIds,
-        programName: programFormData.programName,
-        registrationType: programFormData.registrationType,
-        registrationDate: programFormData.registrationDate,
-        paymentDate: programFormData.paymentDate,
-        totalAmount: totalAmount,
-        totalSessions: totalSessions,
-        status: programFormData.status,
-        assignedTrainerId: programFormData.assignedTrainerId || undefined,
-        memo: programFormData.memo,
-        defaultSessionDuration: Number(programFormData.defaultSessionDuration),
-        branchId: programFormData.branchId,
-        completedSessions: programToEdit?.completedSessions || 0,
-        unitPrice: totalSessions > 0 ? Math.round(totalAmount / totalSessions) : 0,
-        fixedTrainerFee: programFormData.fixedTrainerFee ? Number(programFormData.fixedTrainerFee) : undefined,
-        sessionFees: programFormData.sessionFees,
-    };
+  const handleSaveProgram = async (e: React.FormEvent) => {
+    e.preventDefault(); // 폼 제출 기본 동작 방지
     
-    const memberNames = members.filter(m => programFormData.memberIds.includes(m.id)).map(m => m.name).join(', ');
+    try {
+      const totalAmount = Number(programFormData.totalAmount);
+      const totalSessions = Number(programFormData.totalSessions);
 
-    if (programToEdit && programToEdit.id) {
-      const updatedProgram = await DataManager.updateProgram(programToEdit.id, programData);
-      if (updatedProgram) {
-        setPrograms(programs.map(p => p.id === updatedProgram.id ? updatedProgram : p));
-        await addAuditLog('수정', '프로그램', updatedProgram.programName, `${memberNames} 회원의 프로그램을 수정했습니다.`, updatedProgram.branchId);
+      if (!programFormData.branchId) {
+          alert("지점을 선택해주세요.");
+          return;
       }
-    } else {
-      const newProgram = await DataManager.createProgram(programData);
-      if (newProgram) {
-        setPrograms([...programs, newProgram]);
-        await addAuditLog('생성', '프로그램', newProgram.programName, `${memberNames} 회원의 신규 프로그램을 등록했습니다.`, newProgram.branchId);
+       if (programFormData.memberIds.length === 0) {
+          alert("회원을 한 명 이상 선택해주세요.");
+          return;
       }
+
+      const programData = {
+          memberIds: programFormData.memberIds,
+          programName: programFormData.programName,
+          registrationType: programFormData.registrationType,
+          registrationDate: programFormData.registrationDate,
+          paymentDate: programFormData.paymentDate,
+          totalAmount: totalAmount,
+          totalSessions: totalSessions,
+          status: programFormData.status,
+          assignedTrainerId: programFormData.assignedTrainerId || undefined,
+          memo: programFormData.memo,
+          defaultSessionDuration: Number(programFormData.defaultSessionDuration),
+          branchId: programFormData.branchId,
+          completedSessions: programToEdit?.completedSessions || 0,
+          unitPrice: totalSessions > 0 ? Math.round(totalAmount / totalSessions) : 0,
+          fixedTrainerFee: programFormData.fixedTrainerFee ? Number(programFormData.fixedTrainerFee) : undefined,
+          sessionFees: programFormData.sessionFees,
+      };
+      
+      const memberNames = members.filter(m => programFormData.memberIds.includes(m.id)).map(m => m.name).join(', ');
+
+      let result;
+      if (programToEdit && programToEdit.id) {
+        result = await DataManager.updateProgram(programToEdit.id, programData);
+        if (result) {
+          setPrograms(programs.map(p => p.id === result.id ? result : p));
+          await addAuditLog('수정', '프로그램', result.programName, `${memberNames} 회원의 프로그램을 수정했습니다.`, result.branchId);
+          alert('프로그램이 수정되었습니다.');
+        }
+      } else {
+        result = await DataManager.createProgram(programData);
+        if (result) {
+          setPrograms([...programs, result]);
+          await addAuditLog('생성', '프로그램', result.programName, `${memberNames} 회원의 신규 프로그램을 등록했습니다.`, result.branchId);
+          alert('프로그램이 등록되었습니다.');
+        }
+      }
+      
+      if (result) {
+        handleCloseProgramModal();
+      } else {
+        alert('프로그램 저장에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('프로그램 저장 오류:', error);
+      alert('프로그램 저장 중 오류가 발생했습니다.');
     }
-    handleCloseProgramModal();
   };
 
   const handleDeleteProgram = async (programId: string) => {
@@ -973,7 +988,7 @@ const App: React.FC = () => {
       }
       
       // 감사 로그 추가
-      await addAuditLog('완료', '프로그램', `세션 ${sessionToComplete.sessionNumber}회차`, `'${sessionToComplete.date} ${sessionToComplete.startTime}' 수업을 완료 처리했습니다.`);
+      await addAuditLog('수정', '프로그램', `세션 ${sessionToComplete.sessionNumber}회차`, `'${sessionToComplete.date} ${sessionToComplete.startTime}' 수업을 완료 처리했습니다.`);
       
       alert('수업이 성공적으로 완료 처리되었습니다.');
       handleCloseCompletionModal();
@@ -1267,12 +1282,14 @@ const App: React.FC = () => {
                   if (presetId) {
                     const preset = programPresets.find(p => p.id === presetId);
                     if (preset) {
+                      const unitPrice = preset.totalSessions > 0 ? Math.round(preset.totalAmount / preset.totalSessions) : 0;
                       setProgramFormData(prev => ({
                         ...prev,
                         selectedPresetId: presetId,
                         programName: preset.name,
                         totalAmount: String(preset.totalAmount),
                         totalSessions: String(preset.totalSessions),
+                        unitPrice: String(unitPrice),
                         defaultSessionDuration: String(preset.defaultSessionDuration || 50),
                         fixedTrainerFee: preset.fixedTrainerFee ? String(preset.fixedTrainerFee) : '',
                         sessionFees: preset.sessionFees || {}
@@ -1285,6 +1302,7 @@ const App: React.FC = () => {
                       programName: '',
                       totalAmount: '',
                       totalSessions: '',
+                      unitPrice: '',
                       defaultSessionDuration: '50',
                       fixedTrainerFee: '',
                       sessionFees: {}
@@ -1349,7 +1367,16 @@ const App: React.FC = () => {
                 <input
                   type="number"
                   value={programFormData.totalAmount}
-                  onChange={(e) => setProgramFormData(prev => ({ ...prev, totalAmount: e.target.value }))}
+                  onChange={(e) => {
+                    const totalAmount = e.target.value;
+                    const totalSessions = Number(programFormData.totalSessions);
+                    const unitPrice = totalSessions > 0 ? Math.round(Number(totalAmount) / totalSessions) : 0;
+                    setProgramFormData(prev => ({ 
+                      ...prev, 
+                      totalAmount,
+                      unitPrice: String(unitPrice)
+                    }));
+                  }}
                   required
                   className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm"
                 />
@@ -1359,19 +1386,27 @@ const App: React.FC = () => {
                 <input
                   type="number"
                   value={programFormData.totalSessions}
-                  onChange={(e) => setProgramFormData(prev => ({ ...prev, totalSessions: e.target.value }))}
+                  onChange={(e) => {
+                    const totalSessions = e.target.value;
+                    const totalAmount = Number(programFormData.totalAmount);
+                    const unitPrice = Number(totalSessions) > 0 ? Math.round(totalAmount / Number(totalSessions)) : 0;
+                    setProgramFormData(prev => ({ 
+                      ...prev, 
+                      totalSessions,
+                      unitPrice: String(unitPrice)
+                    }));
+                  }}
                   required
                   className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700">단가</label>
+                <label className="block text-sm font-medium text-slate-700">단가 (자동계산)</label>
                 <input
                   type="number"
                   value={programFormData.unitPrice}
-                  onChange={(e) => setProgramFormData(prev => ({ ...prev, unitPrice: e.target.value }))}
-                  required
-                  className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm"
+                  readOnly
+                  className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm bg-gray-100"
                 />
               </div>
             </div>
@@ -1397,6 +1432,36 @@ const App: React.FC = () => {
                 />
               </div>
             </div>
+
+            {/* 회차별 수업료 동적 필드 */}
+            {Number(programFormData.totalSessions) > 0 && (
+              <div>
+                <label className="block text-sm font-medium text-slate-700">회차별 수업료 (선택사항)</label>
+                <div className="mt-2 grid grid-cols-4 gap-2">
+                  {Array.from({ length: Number(programFormData.totalSessions) }, (_, i) => i + 1).map(sessionNum => (
+                    <div key={sessionNum}>
+                      <label className="block text-xs text-slate-600">{sessionNum}회차</label>
+                      <input
+                        type="number"
+                        value={programFormData.sessionFees?.[sessionNum] || ''}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setProgramFormData(prev => ({
+                            ...prev,
+                            sessionFees: {
+                              ...prev.sessionFees,
+                              [sessionNum]: value ? Number(value) : undefined
+                            }
+                          }));
+                        }}
+                        placeholder="선택사항"
+                        className="mt-1 block w-full px-2 py-1 text-sm border border-slate-300 rounded-md shadow-sm"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-4">
               <div>
