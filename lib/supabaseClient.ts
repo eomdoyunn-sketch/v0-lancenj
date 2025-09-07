@@ -112,6 +112,9 @@ export interface Database {
             total_amount: number
             total_sessions: number
             branch_id: string | null
+            default_session_duration: number | null
+            fixed_trainer_fee: number | null
+            session_fees: any | null
             created_at: string
         }
         Insert: {
@@ -120,6 +123,9 @@ export interface Database {
             total_amount: number
             total_sessions: number
             branch_id: string | null
+            default_session_duration?: number | null
+            fixed_trainer_fee?: number | null
+            session_fees?: any | null
             created_at?: string
         }
         Update: {
@@ -128,6 +134,9 @@ export interface Database {
             total_amount?: number
             total_sessions?: number
             branch_id?: string | null
+            default_session_duration?: number | null
+            fixed_trainer_fee?: number | null
+            session_fees?: any | null
             created_at?: string
         }
       }
@@ -148,6 +157,8 @@ export interface Database {
             memo: string | null
             default_session_duration: number | null
             branch_id: string
+            fixed_trainer_fee: number | null
+            session_fees: any | null
             created_at: string
         }
         Insert: {
@@ -166,6 +177,8 @@ export interface Database {
             memo: string | null
             default_session_duration: number | null
             branch_id: string
+            fixed_trainer_fee?: number | null
+            session_fees?: any | null
             created_at?: string
         }
         Update: {
@@ -184,6 +197,8 @@ export interface Database {
             memo?: string | null
             default_session_duration?: number | null
             branch_id?: string
+            fixed_trainer_fee?: number | null
+            session_fees?: any | null
             created_at?: string
         }
       }

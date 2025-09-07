@@ -48,6 +48,9 @@ const initialProgramFormData = {
   memo: '',
   defaultSessionDuration: '50',
   branchId: '',
+  selectedPresetId: '',
+  fixedTrainerFee: '',
+  sessionFees: {} as { [sessionNumber: number]: number },
 };
 
 type ProgramFormData = typeof initialProgramFormData;
@@ -192,8 +195,8 @@ const App: React.FC = () => {
         // Filter trainers by manager's branches
         if (currentUser.role === 'manager' && currentUser.assignedBranchIds && currentUser.assignedBranchIds.length > 0) {
             const managerBranches = currentUser.assignedBranchIds;
-            const filteredTrainers = allTrainers.filter(t => t.branchIds.some(branchId => managerBranches.includes(branchId)));
-            setTrainers(filteredTrainers);
+            const filteredTrainersForManager = allTrainers.filter(t => t.branchIds.some(branchId => managerBranches.includes(branchId)));
+            setTrainers(filteredTrainersForManager);
         } else {
             setTrainers(allTrainers); // Admin sees all trainers
         }
@@ -244,6 +247,7 @@ const App: React.FC = () => {
         setMemberFilter(prev => ({ ...prev, branchId: defaultBranch }));
         setDashboardFilter(prev => ({ ...prev, branchId: defaultBranch }));
       }
+
       
       // Set initial view based on user permissions
       const permissions: Record<UserRole, View[]> = {
@@ -259,6 +263,28 @@ const App: React.FC = () => {
       }
     }
   }, [currentUser, fetchInitialData, currentView]);
+
+  // 회차별 수업료 필드 동적 생성
+  useEffect(() => {
+    const container = document.getElementById('sessionFeesContainer');
+    if (container && isPresetModalOpen) {
+        const totalSessions = presetToEdit?.totalSessions || 10; // 기본값
+        container.innerHTML = '';
+        
+        for (let i = 1; i <= totalSessions; i++) {
+            const div = document.createElement('div');
+            div.className = 'flex flex-col';
+            div.innerHTML = `
+                <label class="text-xs text-gray-600">${i}회차</label>
+                <input type="number" name="sessionFee_${i}" 
+                       value="${presetToEdit?.sessionFees?.[i] || ''}" 
+                       placeholder="수업료" 
+                       class="text-xs px-2 py-1 border border-gray-300 rounded"/>
+            `;
+            container.appendChild(div);
+        }
+    }
+  }, [isPresetModalOpen, presetToEdit]);
 
   const addAuditLog = async (action: AuditLog['action'], entityType: AuditLog['entityType'], entityName: string, details: string, branchId?: string) => {
     if (!currentUser) return;
@@ -423,6 +449,8 @@ const App: React.FC = () => {
         branchId: programFormData.branchId,
         completedSessions: programToEdit?.completedSessions || 0,
         unitPrice: totalSessions > 0 ? Math.round(totalAmount / totalSessions) : 0,
+        fixedTrainerFee: programFormData.fixedTrainerFee ? Number(programFormData.fixedTrainerFee) : undefined,
+        sessionFees: programFormData.sessionFees,
     };
     
     const memberNames = members.filter(m => programFormData.memberIds.includes(m.id)).map(m => m.name).join(', ');
@@ -1107,7 +1135,7 @@ const App: React.FC = () => {
   
   const filteredMembers = members.filter(m => memberFilter.branchId === '' || m.branchId === memberFilter.branchId);
   
-  const filteredTrainers = trainers.filter(t => {
+  const filteredTrainersForDisplay = trainers.filter(t => {
     // 매니저의 경우 소속 지점의 강사만 표시
     if (currentUser?.role === 'manager' && currentUser.assignedBranchIds) {
       return t.branchIds.some(branchId => currentUser.assignedBranchIds!.includes(branchId));
@@ -1167,14 +1195,14 @@ const App: React.FC = () => {
       <Header currentView={currentView} setCurrentView={setViewWithPermissions} currentUser={currentUser} onLogout={handleLogout} />
       <div className="flex flex-1 overflow-hidden">
         <main className="flex-1 flex overflow-hidden">
-          {currentView === 'programs' && <ProgramTable programs={filteredPrograms} members={members} sessions={sessions} trainers={filteredTrainers} onAddProgram={() => handleOpenProgramModal(null)} onEditProgram={handleOpenProgramModal} onReRegisterProgram={(p) => handleOpenProgramModal({...p, id: ``, registrationType: '재등록', completedSessions: 0, status: '유효'})} onDeleteProgram={handleDeleteProgram} onSessionClick={handleSessionClick} filter={programFilter} setFilter={handleSetProgramFilter} allBranches={branches} onShowTooltip={(content, rect) => setTooltip({ content, rect })} onHideTooltip={() => setTooltip(null)} currentUser={currentUser} />}
-          {currentView === 'dashboard' && <Dashboard trainers={filteredTrainers} sessions={sessions} programs={programs} members={members} startDate={filterStartDate} endDate={filterEndDate} setStartDate={setFilterStartDate} setEndDate={setFilterEndDate} onTrainerClick={(trainerId) => { const t = trainers.find(t=>t.id===trainerId); if(t) {setSelectedTrainerForDetail(t); setTrainerDetailModalOpen(true);}}} onSessionEventClick={handleCalendarSessionClick} allBranches={branches} filter={dashboardFilter} setFilter={setDashboardFilter} />}
+          {currentView === 'programs' && <ProgramTable programs={filteredPrograms} members={members} sessions={sessions} trainers={filteredTrainersForDisplay} onAddProgram={() => handleOpenProgramModal(null)} onEditProgram={handleOpenProgramModal} onReRegisterProgram={(p) => handleOpenProgramModal({...p, id: ``, registrationType: '재등록', completedSessions: 0, status: '유효'})} onDeleteProgram={handleDeleteProgram} onSessionClick={handleSessionClick} filter={programFilter} setFilter={handleSetProgramFilter} allBranches={branches} onShowTooltip={(content, rect) => setTooltip({ content, rect })} onHideTooltip={() => setTooltip(null)} currentUser={currentUser} />}
+          {currentView === 'dashboard' && <Dashboard trainers={filteredTrainersForDisplay} sessions={sessions} programs={programs} members={members} startDate={filterStartDate} endDate={filterEndDate} setStartDate={setFilterStartDate} setEndDate={setFilterEndDate} onTrainerClick={(trainerId) => { const t = trainers.find(t=>t.id===trainerId); if(t) {setSelectedTrainerForDetail(t); setTrainerDetailModalOpen(true);}}} onSessionEventClick={handleCalendarSessionClick} allBranches={branches} filter={dashboardFilter} setFilter={setDashboardFilter} />}
           {/* FIX: Changed setFilter to setMemberFilter to pass the correct state updater function. */}
           {currentView === 'members' && <MemberManagement members={filteredMembers} programs={programs} sessions={sessions} onAddMember={() => handleOpenMemberModal(null)} onEditMember={handleOpenMemberModal} onDeleteMember={handleDeleteMember} onMemberClick={handleMemberClick} allBranches={branches} filter={memberFilter} setFilter={setMemberFilter} currentUser={currentUser} />}
           {currentView === 'logs' && <LogManagement logs={auditLogs} branches={branches} currentUser={currentUser} />}
           {currentView === 'management' && <ManagementView currentUser={currentUser} users={users} trainers={trainers} allBranches={branches} presets={programPresets} onAddUser={(context) => handleOpenUserModal(null, context)} onDeleteUser={handleDeleteUser} onUpdateManagerBranches={handleUpdateManagerBranches} onAddPreset={() => handleOpenPresetModal(null)} onEditPreset={handleOpenPresetModal} onDeletePreset={handleDeletePreset} onAddBranch={() => handleOpenBranchModal(null)} onEditBranch={handleOpenBranchModal} onDeleteBranch={handleDeleteBranch} />}
         </main>
-        {currentView === 'programs' && <Sidebar trainers={filteredTrainers} onAddTrainer={() => handleOpenTrainerModal(null)} onEditTrainer={handleOpenTrainerModal} onDeleteTrainer={handleDeleteTrainer} currentUser={currentUser} branches={branches} />}
+        {currentView === 'programs' && <Sidebar trainers={filteredTrainersForDisplay} onAddTrainer={() => handleOpenTrainerModal(null)} onEditTrainer={handleOpenTrainerModal} onDeleteTrainer={handleDeleteTrainer} currentUser={currentUser} branches={branches} />}
       </div>
       
        {isTrainerDetailModalOpen && (
@@ -1226,126 +1254,284 @@ const App: React.FC = () => {
         </form>
       </Modal>
 
-      <Modal isOpen={isProgramModalOpen} onClose={handleCloseProgramModal} title={programToEdit ? "프로그램 수정" : "신규 프로그램 등록"}>
-        <form onSubmit={(e) => { e.preventDefault(); handleSaveProgram(); }}>
-            <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
-                <div>
-                    <label className="block text-sm font-medium text-slate-700">지점</label>
-                    <select name="branchId" value={programFormData.branchId} onChange={handleProgramFormChange} required 
-                        className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                        <option value="">지점 선택...</option>
-                        {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                    </select>
-                </div>
-                <div>
-                    <label className="block text-sm font-medium text-slate-700">회원 (다중 선택 가능)</label>
-                    <div className={`mt-1 block w-full h-24 p-2 border border-slate-300 rounded-md shadow-sm overflow-y-auto ${!programFormData.branchId ? 'bg-slate-100' : 'bg-white'}`}>
-                        { !programFormData.branchId ? (
-                            <div className="flex items-center justify-center h-full">
-                                <p className="text-sm text-slate-400">먼저 지점을 선택해주세요.</p>
-                            </div>
-                        ) : filteredMembersForModal.length === 0 ? (
-                            <div className="flex items-center justify-center h-full">
-                                <p className="text-sm text-slate-400">해당 지점에 등록된 회원이 없습니다.</p>
-                            </div>
-                        ) : (
-                            filteredMembersForModal.map(m => 
-                                <label key={m.id} className="flex items-center space-x-3 p-1.5 cursor-pointer hover:bg-slate-100 rounded">
-                                    <input
-                                        type="checkbox"
-                                        checked={programFormData.memberIds.includes(m.id)}
-                                        onChange={() => handleMemberSelectionChange(m.id)}
-                                        className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                                    />
-                                    <span className="text-sm text-slate-700">{m.name}</span>
-                                </label>
-                            )
-                        )}
-                    </div>
-                </div>
-                <div>
-                    <label className="block text-sm font-medium text-slate-700">프로그램 프리셋</label>
-                    <select name="programPreset" onChange={handlePresetChange} disabled={!programFormData.branchId}
-                        className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:bg-slate-100">
-                        <option value="">프리셋 선택...</option>
-                        {filteredPresetsForModal.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
-                    </select>
-                </div>
-                <div>
-                    <label className="block text-sm font-medium text-slate-700">프로그램명</label>
-                    <input type="text" name="programName" value={programFormData.programName} onChange={handleProgramFormChange} required className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"/>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                    <div><label className="block text-sm font-medium text-slate-700">총 금액</label><input type="number" name="totalAmount" value={programFormData.totalAmount} onChange={handleProgramFormChange} required className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm"/></div>
-                    <div><label className="block text-sm font-medium text-slate-700">총 횟수</label><input type="number" name="totalSessions" value={programFormData.totalSessions} onChange={handleProgramFormChange} required className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm"/></div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                     <div><label className="block text-sm font-medium text-slate-700">등록일</label><input type="date" name="registrationDate" value={programFormData.registrationDate} onChange={handleProgramFormChange} required className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm"/></div>
-                    <div><label className="block text-sm font-medium text-slate-700">결제일</label><input type="date" name="paymentDate" value={programFormData.paymentDate} onChange={handleProgramFormChange} required className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm"/></div>
-                </div>
-                <div>
-                    <label className="block text-sm font-medium text-slate-700">담당 강사</label>
-                    <select name="assignedTrainerId" value={programFormData.assignedTrainerId} onChange={handleProgramFormChange} disabled={!programFormData.branchId}
-                        className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm disabled:bg-slate-100">
-                        <option value="">미배정</option>
-                        {filteredTrainersForModal.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                    </select>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                    <div>
-                        <label className="block text-sm font-medium text-slate-700">상태</label>
-                        <select name="status" value={programFormData.status} onChange={handleProgramFormChange} required className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm">
-                            <option value="유효">유효</option><option value="정지">정지</option><option value="만료">만료</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-slate-700">등록 구분</label>
-                        <select name="registrationType" value={programFormData.registrationType} onChange={handleProgramFormChange} required className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm">
-                            <option value="신규">신규</option><option value="재등록">재등록</option>
-                        </select>
-                    </div>
-                </div>
-                 <div><label className="block text-sm font-medium text-slate-700">기본 수업 시간 (분)</label><input type="number" name="defaultSessionDuration" value={programFormData.defaultSessionDuration} onChange={handleProgramFormChange} className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm"/></div>
-                <div><label className="block text-sm font-medium text-slate-700">메모</label><textarea name="memo" value={programFormData.memo} onChange={handleProgramFormChange} rows={3} className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm"></textarea></div>
+      <Modal isOpen={isProgramModalOpen} onClose={handleCloseProgramModal} title={programToEdit ? "프로그램 수정" : "신규 프로그램 등록"} maxWidth="max-w-4xl">
+        <form onSubmit={handleSaveProgram}>
+          <div className="space-y-4">
+            {/* 프리셋 선택 */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700">프리셋 선택 (선택사항)</label>
+              <select
+                value={programFormData.selectedPresetId || ''}
+                onChange={(e) => {
+                  const presetId = e.target.value;
+                  if (presetId) {
+                    const preset = programPresets.find(p => p.id === presetId);
+                    if (preset) {
+                      setProgramFormData(prev => ({
+                        ...prev,
+                        selectedPresetId: presetId,
+                        programName: preset.name,
+                        totalAmount: String(preset.totalAmount),
+                        totalSessions: String(preset.totalSessions),
+                        defaultSessionDuration: String(preset.defaultSessionDuration || 50),
+                        fixedTrainerFee: preset.fixedTrainerFee ? String(preset.fixedTrainerFee) : '',
+                        sessionFees: preset.sessionFees || {}
+                      }));
+                    }
+                  } else {
+                    setProgramFormData(prev => ({
+                      ...prev,
+                      selectedPresetId: '',
+                      programName: '',
+                      totalAmount: '',
+                      totalSessions: '',
+                      defaultSessionDuration: '50',
+                      fixedTrainerFee: '',
+                      sessionFees: {}
+                    }));
+                  }
+                }}
+                className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm"
+              >
+                <option value="">프리셋을 선택하세요</option>
+                {programPresets.map(preset => (
+                  <option key={preset.id} value={preset.id}>
+                    {preset.name} ({preset.totalAmount.toLocaleString()}원, {preset.totalSessions}회)
+                  </option>
+                ))}
+              </select>
             </div>
-            <div className="mt-6 flex justify-end gap-2">
-                <button type="button" onClick={handleCloseProgramModal} className="px-4 py-2 bg-slate-200 text-slate-800 rounded-md hover:bg-slate-300">취소</button>
-                <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">저장</button>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700">프로그램명</label>
+                <input
+                  type="text"
+                  value={programFormData.programName}
+                  onChange={(e) => setProgramFormData(prev => ({ ...prev, programName: e.target.value }))}
+                  required
+                  className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700">등록 유형</label>
+                <select
+                  value={programFormData.registrationType}
+                  onChange={(e) => setProgramFormData(prev => ({ ...prev, registrationType: e.target.value as '신규' | '재등록' }))}
+                  className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm"
+                >
+                  <option value="신규">신규</option>
+                  <option value="재등록">재등록</option>
+                </select>
+              </div>
             </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700">회원 선택</label>
+              <div className="mt-2 space-y-2 max-h-32 overflow-y-auto border border-slate-300 rounded-md p-2">
+                {members.map(member => (
+                  <label key={member.id} className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={programFormData.memberIds.includes(member.id)}
+                      onChange={() => handleMemberSelectionChange(member.id)}
+                      className="mr-2"
+                    />
+                    {member.name} ({member.contact})
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700">총 금액</label>
+                <input
+                  type="number"
+                  value={programFormData.totalAmount}
+                  onChange={(e) => setProgramFormData(prev => ({ ...prev, totalAmount: e.target.value }))}
+                  required
+                  className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700">총 세션 수</label>
+                <input
+                  type="number"
+                  value={programFormData.totalSessions}
+                  onChange={(e) => setProgramFormData(prev => ({ ...prev, totalSessions: e.target.value }))}
+                  required
+                  className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700">단가</label>
+                <input
+                  type="number"
+                  value={programFormData.unitPrice}
+                  onChange={(e) => setProgramFormData(prev => ({ ...prev, unitPrice: e.target.value }))}
+                  required
+                  className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700">수업시간 (분)</label>
+                <input
+                  type="number"
+                  value={programFormData.defaultSessionDuration}
+                  onChange={(e) => setProgramFormData(prev => ({ ...prev, defaultSessionDuration: e.target.value }))}
+                  className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700">고정 강사료 (원)</label>
+                <input
+                  type="number"
+                  value={programFormData.fixedTrainerFee}
+                  onChange={(e) => setProgramFormData(prev => ({ ...prev, fixedTrainerFee: e.target.value }))}
+                  placeholder="예: 20000 (오티)"
+                  className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700">등록일</label>
+                <input
+                  type="date"
+                  value={programFormData.registrationDate}
+                  onChange={(e) => setProgramFormData(prev => ({ ...prev, registrationDate: e.target.value }))}
+                  required
+                  className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700">결제일</label>
+                <input
+                  type="date"
+                  value={programFormData.paymentDate}
+                  onChange={(e) => setProgramFormData(prev => ({ ...prev, paymentDate: e.target.value }))}
+                  required
+                  className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700">담당 강사</label>
+                <select
+                  value={programFormData.assignedTrainerId}
+                  onChange={(e) => setProgramFormData(prev => ({ ...prev, assignedTrainerId: e.target.value }))}
+                  className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm"
+                >
+                  <option value="">강사 선택</option>
+                  {filteredTrainersForModal.map(trainer => (
+                    <option key={trainer.id} value={trainer.id}>{trainer.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700">지점</label>
+                <select
+                  value={programFormData.branchId}
+                  onChange={(e) => setProgramFormData(prev => ({ ...prev, branchId: e.target.value }))}
+                  required
+                  className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm"
+                >
+                  {branches.map(branch => (
+                    <option key={branch.id} value={branch.id}>{branch.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700">메모</label>
+              <textarea
+                value={programFormData.memo}
+                onChange={(e) => setProgramFormData(prev => ({ ...prev, memo: e.target.value }))}
+                rows={3}
+                className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm"
+              />
+            </div>
+          </div>
+          <div className="mt-6 flex justify-end gap-2">
+            <button type="button" onClick={handleCloseProgramModal} className="px-4 py-2 bg-slate-200 text-slate-800 rounded-md hover:bg-slate-300">취소</button>
+            <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">저장</button>
+          </div>
         </form>
-    </Modal>
-    
-    <Modal isOpen={isPresetModalOpen} onClose={handleClosePresetModal} title={presetToEdit ? "프리셋 수정" : "신규 프리셋 추가"}>
-        <form onSubmit={(e) => {
-            e.preventDefault();
-            const formData = new FormData(e.currentTarget);
-            const data: Omit<ProgramPreset, 'id'> = {
-                name: formData.get('name') as string,
-                totalAmount: Number(formData.get('totalAmount')),
-                totalSessions: Number(formData.get('totalSessions')),
-                branchId: formData.get('branchId') as string || null
-            };
-            handleSavePreset(data);
-        }}>
-            <div className="space-y-4">
-                <div><label className="block text-sm font-medium text-slate-700">프리셋 이름</label><input type="text" name="name" defaultValue={presetToEdit?.name} required className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm"/></div>
-                <div className="grid grid-cols-2 gap-4">
-                    <div><label className="block text-sm font-medium text-slate-700">총 금액</label><input type="number" name="totalAmount" defaultValue={presetToEdit?.totalAmount} required className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm"/></div>
-                    <div><label className="block text-sm font-medium text-slate-700">총 횟수</label><input type="number" name="totalSessions" defaultValue={presetToEdit?.totalSessions} required className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm"/></div>
-                </div>
-                <div><label className="block text-sm font-medium text-slate-700">적용 지점</label>
-                    <select name="branchId" defaultValue={presetToEdit?.branchId || (currentUser?.role === 'manager' && currentUser.assignedBranchIds && currentUser.assignedBranchIds.length > 0 ? currentUser.assignedBranchIds[0] : '')} className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm">
-                        <option value="">모든 지점</option>
-                        {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                    </select>
-                </div>
+      </Modal>
+
+      <Modal isOpen={isPresetModalOpen} onClose={handleClosePresetModal} title={presetToEdit ? "프리셋 수정" : "신규 프리셋 추가"}>
+    <form onSubmit={(e) => {
+        e.preventDefault();
+        const formData = new FormData(e.currentTarget);
+        
+        // 회차별 수업료 파싱
+        const sessionFees: { [sessionNumber: number]: number } = {};
+        const totalSessions = Number(formData.get('totalSessions'));
+        for (let i = 1; i <= totalSessions; i++) {
+            const fee = formData.get(`sessionFee_${i}`);
+            if (fee && Number(fee) > 0) {
+                sessionFees[i] = Number(fee);
+            }
+        }
+        
+        const data: Omit<ProgramPreset, 'id'> = {
+            name: formData.get('name') as string,
+            totalAmount: Number(formData.get('totalAmount')),
+            totalSessions: totalSessions,
+            branchId: formData.get('branchId') as string || null,
+            defaultSessionDuration: formData.get('defaultSessionDuration') ? Number(formData.get('defaultSessionDuration')) : undefined,
+            fixedTrainerFee: formData.get('fixedTrainerFee') ? Number(formData.get('fixedTrainerFee')) : undefined,
+            sessionFees: Object.keys(sessionFees).length > 0 ? sessionFees : undefined
+        };
+        handleSavePreset(data);
+    }}>
+        <div className="space-y-4">
+            <div><label className="block text-sm font-medium text-slate-700">프리셋 이름</label><input type="text" name="name" defaultValue={presetToEdit?.name} required className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm"/></div>
+            <div className="grid grid-cols-2 gap-4">
+                <div><label className="block text-sm font-medium text-slate-700">총 금액</label><input type="number" name="totalAmount" defaultValue={presetToEdit?.totalAmount} required className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm"/></div>
+                <div><label className="block text-sm font-medium text-slate-700">총 횟수</label><input type="number" name="totalSessions" defaultValue={presetToEdit?.totalSessions} required className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm"/></div>
             </div>
-            <div className="mt-6 flex justify-end gap-2">
-                <button type="button" onClick={handleClosePresetModal} className="px-4 py-2 bg-slate-200 text-slate-800 rounded-md hover:bg-slate-300">취소</button>
-                <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">저장</button>
+            <div className="grid grid-cols-2 gap-4">
+                <div><label className="block text-sm font-medium text-slate-700">수업시간 (분)</label><input type="number" name="defaultSessionDuration" defaultValue={presetToEdit?.defaultSessionDuration || 50} placeholder="50" className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm"/></div>
+                <div><label className="block text-sm font-medium text-slate-700">고정 강사료 (원)</label><input type="number" name="fixedTrainerFee" defaultValue={presetToEdit?.fixedTrainerFee} placeholder="예: 20000 (오티)" className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm"/></div>
             </div>
-        </form>
-    </Modal>
+            
+            {/* 회차별 수업료 설정 */}
+            <div className="border rounded-lg p-4 bg-gray-50">
+                <h4 className="text-sm font-medium text-slate-700 mb-3">회차별 수업료 설정 (선택사항)</h4>
+                <div className="grid grid-cols-3 gap-2" id="sessionFeesContainer">
+                    {/* JavaScript로 동적으로 생성될 필드들 */}
+                </div>
+                <p className="text-xs text-gray-500 mt-2">각 회차별로 다른 수업료를 설정할 수 있습니다. 비워두면 기본 수업료가 적용됩니다.</p>
+            </div>
+            
+            <div><label className="block text-sm font-medium text-slate-700">적용 지점</label>
+                <select name="branchId" defaultValue={presetToEdit?.branchId || (currentUser?.role === 'manager' && currentUser.assignedBranchIds && currentUser.assignedBranchIds.length > 0 ? currentUser.assignedBranchIds[0] : '')} className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm">
+                    <option value="">모든 지점</option>
+                    {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                </select>
+            </div>
+            <div className="p-3 bg-blue-50 rounded-md">
+                <p className="text-sm text-blue-700">
+                    <strong>고정 강사료 설정:</strong> 값을 입력하면 강사 요율에 상관없이 해당 금액을 지급합니다. 
+                    예: 오티의 경우 20,000원 입력
+                </p>
+            </div>
+        </div>
+        <div className="mt-6 flex justify-end gap-2">
+            <button type="button" onClick={handleClosePresetModal} className="px-4 py-2 bg-slate-200 text-slate-800 rounded-md hover:bg-slate-300">취소</button>
+            <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">저장</button>
+        </div>
+    </form>
+</Modal>
 
     <Modal isOpen={isBranchModalOpen} onClose={() => { setBranchModalOpen(false); setBranchToEdit(null); }} title={branchToEdit ? "지점 수정" : "신규 지점 추가"}>
         <form onSubmit={(e) => {

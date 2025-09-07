@@ -405,6 +405,8 @@ export class DataManager {
         memo: program.memo,
         defaultSessionDuration: program.default_session_duration,
         branchId: program.branch_id,
+        fixedTrainerFee: program.fixed_trainer_fee,
+        sessionFees: program.session_fees,
         createdAt: program.created_at
       })) || [];
     } catch (error) {
@@ -432,6 +434,8 @@ export class DataManager {
           memo: programData.memo,
           default_session_duration: programData.defaultSessionDuration,
           branch_id: programData.branchId,
+          fixed_trainer_fee: programData.fixedTrainerFee,
+          session_fees: programData.sessionFees,
           created_at: new Date().toISOString()
         })
         .select()
@@ -458,6 +462,8 @@ export class DataManager {
         memo: newProgram.memo,
         defaultSessionDuration: newProgram.default_session_duration,
         branchId: newProgram.branch_id,
+        fixedTrainerFee: newProgram.fixed_trainer_fee,
+        sessionFees: newProgram.session_fees,
         createdAt: newProgram.created_at
       };
     } catch (error) {
@@ -484,6 +490,8 @@ export class DataManager {
       if (updates.memo !== undefined) updateData.memo = updates.memo;
       if (updates.defaultSessionDuration !== undefined) updateData.default_session_duration = updates.defaultSessionDuration;
       if (updates.branchId !== undefined) updateData.branch_id = updates.branchId;
+      if (updates.fixedTrainerFee !== undefined) updateData.fixed_trainer_fee = updates.fixedTrainerFee;
+      if (updates.sessionFees !== undefined) updateData.session_fees = updates.sessionFees;
 
       const { data, error } = await supabase
         .from('programs')
@@ -513,6 +521,8 @@ export class DataManager {
         memo: data.memo,
         defaultSessionDuration: data.default_session_duration,
         branchId: data.branch_id,
+        fixedTrainerFee: data.fixed_trainer_fee,
+        sessionFees: data.session_fees,
         createdAt: data.created_at
       };
     } catch (error) {
@@ -712,6 +722,9 @@ export class DataManager {
         totalAmount: preset.total_amount,
         totalSessions: preset.total_sessions,
         branchId: preset.branch_id,
+        defaultSessionDuration: preset.default_session_duration,
+        fixedTrainerFee: preset.fixed_trainer_fee,
+        sessionFees: preset.session_fees,
         createdAt: preset.created_at
       })) || [];
     } catch (error) {
@@ -729,6 +742,9 @@ export class DataManager {
           total_amount: presetData.totalAmount,
           total_sessions: presetData.totalSessions,
           branch_id: presetData.branchId,
+          default_session_duration: presetData.defaultSessionDuration,
+          fixed_trainer_fee: presetData.fixedTrainerFee,
+          session_fees: presetData.sessionFees,
           created_at: new Date().toISOString()
         })
         .select()
@@ -745,7 +761,9 @@ export class DataManager {
         totalAmount: newPreset.total_amount,
         totalSessions: newPreset.total_sessions,
         branchId: newPreset.branch_id,
-        createdAt: newPreset.created_at
+        defaultSessionDuration: newPreset.default_session_duration,
+        fixedTrainerFee: newPreset.fixed_trainer_fee,
+        sessionFees: newPreset.session_fees
       };
     } catch (error) {
       console.error('프로그램 프리셋 생성 중 오류:', error);
@@ -761,6 +779,9 @@ export class DataManager {
       if (updates.totalAmount !== undefined) updateData.total_amount = updates.totalAmount;
       if (updates.totalSessions !== undefined) updateData.total_sessions = updates.totalSessions;
       if (updates.branchId !== undefined) updateData.branch_id = updates.branchId;
+      if (updates.defaultSessionDuration !== undefined) updateData.default_session_duration = updates.defaultSessionDuration;
+      if (updates.fixedTrainerFee !== undefined) updateData.fixed_trainer_fee = updates.fixedTrainerFee;
+      if (updates.sessionFees !== undefined) updateData.session_fees = updates.sessionFees;
 
       const { data, error } = await supabase
         .from('program_presets')
@@ -780,7 +801,9 @@ export class DataManager {
         totalAmount: data.total_amount,
         totalSessions: data.total_sessions,
         branchId: data.branch_id,
-        createdAt: data.created_at
+        defaultSessionDuration: data.default_session_duration,
+        fixedTrainerFee: data.fixed_trainer_fee,
+        sessionFees: data.session_fees
       };
     } catch (error) {
       console.error('프로그램 프리셋 업데이트 중 오류:', error);

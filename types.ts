@@ -44,6 +44,8 @@ export interface MemberProgram {
   memo?: string;
   defaultSessionDuration?: number; // in minutes
   branchId: string;
+  fixedTrainerFee?: number; // 고정 강사료 (요율 무시)
+  sessionFees?: { [sessionNumber: number]: number }; // 회차별 수업료
 }
 
 export type RateType = 'percentage' | 'fixed';
@@ -92,6 +94,10 @@ export interface ProgramPreset {
   totalSessions: number;
   // An undefined branchId signifies it's available for all branches
   branchId?: string | null;
+  // 새로 추가할 필드들
+  defaultSessionDuration?: number; // 수업시간 (분)
+  fixedTrainerFee?: number; // 고정 강사료 (요율 무시)
+  sessionFees?: { [sessionNumber: number]: number }; // 회차별 수업료
 }
 
 export interface AuditLog {
