@@ -1,0 +1,22 @@
+{
+  "name": "15:18----0902-:-21:30copy-of-21:44copy-of-1111!!copy-of-16:40-09-01copy-of-슈퍼베이스연결직후copy-of-데이터리팩토링copy-of-화면편집함0901copy-of-수퍼베이스-직전-8월-30일-copy-of-20:28-copy-of-15:15-;-08-28of-mvp-완성-copy-of-아이콘-적용전-13:57-of-13:45:06-copy-of-12:44-8/28-copy-of-pt-block",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@supabase/supabase-js": "^2.57.2",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.0",
+    "typescript": "~5.8.2",
+    "vite": "^6.2.0"
+  }
+}
