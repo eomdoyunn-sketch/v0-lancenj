@@ -8,6 +8,7 @@ import { Header } from './components/Header';
 import { Dashboard } from './components/Dashboard';
 import { MemberManagement } from './components/MemberManagement';
 import { LogManagement } from './components/LogManagement';
+import { supabase } from './lib/supabaseClient';
 import { ManagementView } from './components/Management';
 import { Modal } from './components/Modal';
 import { Sidebar } from './components/Sidebar';
@@ -683,6 +684,81 @@ const App: React.FC = () => {
       setTrainerFormState({ ...trainerFormState, branches: newBranches });
   };
 
+  // 강사 수업료 변경 시 관련 세션들의 수업료를 즉시 업데이트하는 함수
+  const updateSessionsWithNewTrainerRates = async (trainerId: string, updatedTrainer: Trainer) => {
+    try {
+      console.log('강사 수업료 변경으로 인한 세션 업데이트 시작:', trainerId);
+      console.log('업데이트된 강사 정보:', updatedTrainer);
+      
+      // 해당 강사와 관련된 모든 세션 찾기
+      const relatedSessions = sessions.filter(session => session.trainerId === trainerId);
+      console.log('관련 세션 수:', relatedSessions.length);
+      
+      for (const session of relatedSessions) {
+        const program = programs.find(p => p.id === session.programId);
+        if (!program) {
+          console.log(`프로그램을 찾을 수 없음: ${session.programId}`);
+          continue;
+        }
+        
+        // 프로그램의 지점 ID 찾기
+        const programBranchId = program.branchId;
+        const trainerBranchRate = updatedTrainer.branchRates[programBranchId];
+        
+        console.log(`세션 ${session.id} - 프로그램 지점: ${programBranchId}, 강사 지점 요율:`, trainerBranchRate);
+        
+        if (!trainerBranchRate) {
+          console.log(`강사가 해당 지점에 배정되지 않음: ${programBranchId}`);
+          continue;
+        }
+        
+        // 새로운 수업료 계산
+        let newTrainerFee: number;
+        let newTrainerRate: number;
+        
+        if (trainerBranchRate.type === 'percentage') {
+          newTrainerFee = program.unitPrice * trainerBranchRate.value;
+          newTrainerRate = trainerBranchRate.value;
+        } else {
+          newTrainerFee = trainerBranchRate.value;
+          newTrainerRate = -1; // 고정 금액
+        }
+        
+        console.log(`세션 ${session.id} 수업료 계산:`, {
+          기존: { trainerFee: session.trainerFee, trainerRate: session.trainerRate },
+          새로운: { trainerFee: newTrainerFee, trainerRate: newTrainerRate },
+          프로그램단가: program.unitPrice,
+          강사요율: trainerBranchRate
+        });
+        
+        // 세션의 수업료가 변경된 경우에만 업데이트
+        if (Math.abs(session.trainerFee - newTrainerFee) > 0.01 || session.trainerRate !== newTrainerRate) {
+          console.log(`세션 ${session.id} 수업료 업데이트: ${session.trainerFee} -> ${newTrainerFee}, rate: ${session.trainerRate} -> ${newTrainerRate}`);
+          
+          const updatedSession = await DataManager.updateSession(session.id, {
+            trainerFee: newTrainerFee,
+            trainerRate: newTrainerRate
+          });
+          
+          if (updatedSession) {
+            setSessions(prevSessions => 
+              prevSessions.map(s => s.id === updatedSession.id ? updatedSession : s)
+            );
+            console.log(`세션 ${session.id} 업데이트 완료:`, updatedSession);
+          } else {
+            console.error(`세션 ${session.id} 업데이트 실패`);
+          }
+        } else {
+          console.log(`세션 ${session.id}는 변경사항 없음`);
+        }
+      }
+      
+      console.log('세션 수업료 업데이트 완료');
+    } catch (error) {
+      console.error('세션 수업료 업데이트 중 오류:', error);
+    }
+  };
+
   const handleSaveTrainer = async () => {
     if (!trainerFormState) return;
 
@@ -714,6 +790,10 @@ const App: React.FC = () => {
         const updatedTrainer = await DataManager.updateTrainer(trainerToEdit.id, trainerData);
         if (updatedTrainer) {
           setTrainers(trainers.map(t => t.id === updatedTrainer.id ? updatedTrainer : t));
+          
+          // 강사 수업료 변경 시 관련 세션들의 수업료 즉시 업데이트
+          await updateSessionsWithNewTrainerRates(trainerToEdit.id, updatedTrainer);
+          
           await addAuditLog('수정', '강사', updatedTrainer.name, `강사 정보를 수정했습니다.`, branchIdForLog);
         }
     } else {
@@ -940,9 +1020,43 @@ const App: React.FC = () => {
     }
   };
   
+  // 수업 시간이 지났는지 확인하는 함수
+  const isSessionTimePassed = (session: Session): boolean => {
+    const now = new Date();
+    const sessionDateTime = new Date(`${session.date}T${session.startTime}`);
+    return now >= sessionDateTime;
+  };
+
   const handleCompleteSession = async (sessionToComplete: Session, attendedMemberIds: string[], sessionFee?: number) => {
     try {
-      console.log('수업 완료 처리 시작:', { sessionToComplete: sessionToComplete.id, attendedMemberIds, sessionFee });
+      console.log('수업 완료 처리 시작:', { 
+        sessionId: sessionToComplete.id, 
+        sessionNumber: sessionToComplete.sessionNumber,
+        attendedMemberIds, 
+        sessionFee,
+        currentStatus: sessionToComplete.status,
+        currentTrainerFee: sessionToComplete.trainerFee
+      });
+
+      // Supabase 연결 테스트
+      console.log('Supabase 연결 테스트 시작...');
+      try {
+        const { data: testData, error: testError } = await supabase
+          .from('sessions')
+          .select('id')
+          .limit(1);
+        
+        if (testError) {
+          console.error('Supabase 연결 오류:', testError);
+          alert(`데이터베이스 연결 오류: ${testError.message}`);
+          return;
+        }
+        console.log('Supabase 연결 정상:', testData);
+      } catch (connectionError) {
+        console.error('Supabase 연결 실패:', connectionError);
+        alert(`데이터베이스 연결 실패: ${connectionError.message}`);
+        return;
+      }
       
       const program = programs.find(p => p.id === sessionToComplete.programId);
       if (!program) {
@@ -951,49 +1065,73 @@ const App: React.FC = () => {
         return;
       }
 
+      console.log('찾은 프로그램:', program);
+
+      // 수업 시간이 지나지 않았으면 완료 처리 불가
+      if (!isSessionTimePassed(sessionToComplete)) {
+        console.log('수업 시간이 지나지 않음:', sessionToComplete.date, sessionToComplete.startTime);
+        alert('수업 예약 시간이 지나지 않아 완료 처리할 수 없습니다.');
+        return;
+      }
+
       const updatedSessionData = { 
         status: SessionStatus.Completed, 
         attendedMemberIds: attendedMemberIds,
         completedAt: new Date().toISOString(),
-        sessionFee: sessionFee || sessionToComplete.trainerFee
+        // sessionFee는 데이터베이스에 컬럼이 없으므로 제거
+        trainerFee: sessionToComplete.trainerFee  // 강사 수업료는 기존 값 유지
       };
       
       console.log('세션 업데이트 데이터:', updatedSessionData);
+      console.log('DataManager.updateSession 호출 전');
+      
       const updatedSession = await DataManager.updateSession(sessionToComplete.id, updatedSessionData);
       console.log('세션 업데이트 결과:', updatedSession);
       
       if (!updatedSession) {
-        console.error('세션 업데이트 실패');
+        console.error('세션 업데이트 실패 - DataManager.updateSession이 null을 반환했습니다.');
         alert('수업 완료 처리에 실패했습니다.');
         return;
       }
       
       const wasAlreadyCompleted = sessionToComplete.status === SessionStatus.Completed;
+      console.log('이미 완료된 세션인가?', wasAlreadyCompleted);
+      
       const updatedSessions = sessions.map(s => s.id === updatedSession.id ? updatedSession : s);
       setSessions(updatedSessions);
+      console.log('세션 상태 업데이트 완료');
 
       if (!wasAlreadyCompleted) {
+          console.log('프로그램 완료 세션 수 업데이트 시작');
           const newCompletedCount = updatedSessions.filter(s => s.programId === program.id && s.status === SessionStatus.Completed).length;
           const programUpdates = {
               completedSessions: newCompletedCount,
               status: newCompletedCount >= program.totalSessions ? '만료' as ProgramStatus : program.status,
           };
           console.log('프로그램 업데이트 데이터:', programUpdates);
+          console.log('DataManager.updateProgram 호출 전');
+          
           const updatedProgram = await DataManager.updateProgram(program.id, programUpdates);
           console.log('프로그램 업데이트 결과:', updatedProgram);
           
           if (updatedProgram) {
             setPrograms(programs.map(p => p.id === updatedProgram.id ? updatedProgram : p));
+            console.log('프로그램 상태 업데이트 완료');
+          } else {
+            console.error('프로그램 업데이트 실패');
           }
       }
       
       // 감사 로그 추가
+      console.log('감사 로그 추가 시작');
       await addAuditLog('수정', '프로그램', `세션 ${sessionToComplete.sessionNumber}회차`, `'${sessionToComplete.date} ${sessionToComplete.startTime}' 수업을 완료 처리했습니다.`);
+      console.log('감사 로그 추가 완료');
       
       alert('수업이 성공적으로 완료 처리되었습니다.');
       handleCloseCompletionModal();
     } catch (error) {
       console.error('수업 완료 처리 중 오류:', error);
+      console.error('오류 스택:', error.stack);
       alert(`수업 완료 처리 중 오류가 발생했습니다: ${error.message}`);
     }
   };
@@ -1211,7 +1349,7 @@ const App: React.FC = () => {
       <div className="flex flex-1 overflow-hidden">
         <main className="flex-1 flex overflow-hidden">
           {currentView === 'programs' && <ProgramTable programs={filteredPrograms} members={members} sessions={sessions} trainers={filteredTrainersForDisplay} onAddProgram={() => handleOpenProgramModal(null)} onEditProgram={handleOpenProgramModal} onReRegisterProgram={(p) => handleOpenProgramModal({...p, id: ``, registrationType: '재등록', completedSessions: 0, status: '유효'})} onDeleteProgram={handleDeleteProgram} onSessionClick={handleSessionClick} filter={programFilter} setFilter={handleSetProgramFilter} allBranches={branches} onShowTooltip={(content, rect) => setTooltip({ content, rect })} onHideTooltip={() => setTooltip(null)} currentUser={currentUser} />}
-          {currentView === 'dashboard' && <Dashboard trainers={filteredTrainersForDisplay} sessions={sessions} programs={programs} members={members} startDate={filterStartDate} endDate={filterEndDate} setStartDate={setFilterStartDate} setEndDate={setFilterEndDate} onTrainerClick={(trainerId) => { const t = trainers.find(t=>t.id===trainerId); if(t) {setSelectedTrainerForDetail(t); setTrainerDetailModalOpen(true);}}} onSessionEventClick={handleCalendarSessionClick} allBranches={branches} filter={dashboardFilter} setFilter={setDashboardFilter} />}
+          {currentView === 'dashboard' && <Dashboard trainers={filteredTrainersForDisplay} sessions={sessions} programs={programs} members={members} startDate={filterStartDate} endDate={filterEndDate} setStartDate={setFilterStartDate} setEndDate={setFilterEndDate} onTrainerClick={(trainerId) => { const t = trainers.find(t=>t.id===trainerId); if(t) {setSelectedTrainerForDetail(t); setTrainerDetailModalOpen(true);}}} onSessionEventClick={handleCalendarSessionClick} allBranches={branches} filter={dashboardFilter} setFilter={setDashboardFilter} currentUser={currentUser} />}
           {/* FIX: Changed setFilter to setMemberFilter to pass the correct state updater function. */}
           {currentView === 'members' && <MemberManagement members={filteredMembers} programs={programs} sessions={sessions} onAddMember={() => handleOpenMemberModal(null)} onEditMember={handleOpenMemberModal} onDeleteMember={handleDeleteMember} onMemberClick={handleMemberClick} allBranches={branches} filter={memberFilter} setFilter={setMemberFilter} currentUser={currentUser} />}
           {currentView === 'logs' && <LogManagement logs={auditLogs} branches={branches} currentUser={currentUser} />}
@@ -1580,7 +1718,8 @@ const App: React.FC = () => {
             
             <div><label className="block text-sm font-medium text-slate-700">적용 지점</label>
                 <select name="branchId" defaultValue={presetToEdit?.branchId || (currentUser?.role === 'manager' && currentUser.assignedBranchIds && currentUser.assignedBranchIds.length > 0 ? currentUser.assignedBranchIds[0] : '')} className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm">
-                    <option value="">모든 지점</option>
+                    {/* 관리자만 모든 지점 옵션 표시 */}
+                    {currentUser?.role === 'admin' && <option value="">모든 지점</option>}
                     {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                 </select>
             </div>
@@ -1944,6 +2083,14 @@ const App: React.FC = () => {
                 }}>
                     <div className="space-y-4">
                         <p className="text-slate-700"><span className="font-semibold">{completionData.date} {completionData.startTime}</span> 수업을 완료처리 하시겠습니까?</p>
+                        {!isSessionTimePassed(completionData) && (
+                            <div className="p-3 bg-yellow-100 border border-yellow-300 rounded-md">
+                                <p className="text-yellow-800 text-sm">
+                                    <strong>주의:</strong> 수업 예약 시간이 아직 지나지 않았습니다. 
+                                    수업이 시작된 후에만 완료 처리할 수 있습니다.
+                                </p>
+                            </div>
+                        )}
                         <div><label className="block text-sm font-medium text-slate-700">참석 확인</label><div className="mt-2 space-y-1">
                             {programMembers.map(member => (<label key={member.id} className="flex items-center">
                                 <input type="checkbox" name="attendedMemberIds" value={member.id} defaultChecked={completionData.attendedMemberIds.includes(member.id)} className="rounded"/>
@@ -1952,7 +2099,11 @@ const App: React.FC = () => {
                         </div></div>
                         <div className="p-3 bg-slate-100 rounded-md text-sm">
                             <p><strong>강사:</strong> {trainers.find(t=>t.id === completionData.trainerId)?.name}</p>
-                            <p><strong>수업료 정산:</strong> {program.unitPrice.toLocaleString()}원 * {(completionData.trainerRate * 100).toFixed(0)}% = {completionData.trainerFee.toLocaleString()}원</p>
+                            <p><strong>수업료 정산:</strong> {
+                                completionData.trainerRate === -1 
+                                    ? `고정 금액: ${completionData.trainerFee.toLocaleString()}원`
+                                    : `${program.unitPrice.toLocaleString()}원 * ${(completionData.trainerRate * 100).toFixed(0)}% = ${completionData.trainerFee.toLocaleString()}원`
+                            }</p>
                         </div>
                         {currentUser?.role === 'admin' && (
                             <div>
@@ -1978,7 +2129,18 @@ const App: React.FC = () => {
                         <div className="flex gap-2">
                           <button type="button" onClick={handleCloseCompletionModal} className="px-4 py-2 bg-slate-200 text-slate-800 rounded-md hover:bg-slate-300">취소</button>
                           {completionData.status !== SessionStatus.Completed && (
-                              <button type="submit" className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center gap-2"><CheckCircleIcon className="w-4 h-4" /> 완료 처리</button>
+                              <button 
+                                type="submit" 
+                                disabled={!isSessionTimePassed(completionData)}
+                                className={`px-4 py-2 flex items-center gap-2 ${
+                                  isSessionTimePassed(completionData) 
+                                    ? 'bg-green-600 text-white hover:bg-green-700' 
+                                    : 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                                } rounded-md`}
+                                title={!isSessionTimePassed(completionData) ? '수업 예약 시간이 지나야 완료 처리할 수 있습니다.' : ''}
+                              >
+                                <CheckCircleIcon className="w-4 h-4" /> 완료 처리
+                              </button>
                           )}
                         </div>
                     </div>

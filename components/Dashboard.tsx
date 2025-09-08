@@ -1,5 +1,5 @@
 import React from 'react';
-import { Member, MemberProgram, Session, Trainer, Branch } from '../types';
+import { Member, MemberProgram, Session, Trainer, Branch, User } from '../types';
 import { ScheduleCalendar } from './ScheduleCalendar';
 
 interface DashboardProps {
@@ -16,6 +16,7 @@ interface DashboardProps {
   allBranches: Branch[];
   filter: { branchId: string };
   setFilter: (filter: { branchId: string }) => void;
+  currentUser: User | null;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ 
@@ -32,6 +33,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
     allBranches,
     filter,
     setFilter,
+    currentUser,
 }) => {
   
   const programMap = new Map(programs.map(p => [p.id, p]));
@@ -108,12 +110,15 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </h2>
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full lg:w-auto justify-end">
             <div className="flex items-center gap-2 p-1 bg-slate-200 rounded-lg flex-wrap">
-                <button 
-                    onClick={() => setFilter({ branchId: '' })}
-                    className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${filter.branchId === '' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-600 hover:bg-slate-300'}`}
-                >
-                    모든 지점
-                </button>
+                {/* 관리자만 모든 지점 버튼 표시 */}
+                {currentUser?.role === 'admin' && (
+                    <button 
+                        onClick={() => setFilter({ branchId: '' })}
+                        className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${filter.branchId === '' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-600 hover:bg-slate-300'}`}
+                    >
+                        모든 지점
+                    </button>
+                )}
                 {allBranches.map(branch => (
                     <button 
                         key={branch.id}

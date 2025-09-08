@@ -647,6 +647,26 @@ export class DataManager {
       if (updates.completedAt !== undefined) updateData.completed_at = updates.completedAt;
 
       console.log('Supabase 업데이트 데이터:', updateData);
+      console.log('업데이트할 세션 ID:', sessionId);
+
+      // 먼저 해당 세션이 존재하는지 확인
+      const { data: existingSession, error: checkError } = await supabase
+        .from('sessions')
+        .select('id, status')
+        .eq('id', sessionId)
+        .single();
+
+      console.log('기존 세션 확인 결과:', { existingSession, checkError });
+
+      if (checkError) {
+        console.error('세션 존재 확인 실패:', checkError);
+        return null;
+      }
+
+      if (!existingSession) {
+        console.error('세션을 찾을 수 없습니다:', sessionId);
+        return null;
+      }
 
       const { data, error } = await supabase
         .from('sessions')
@@ -655,10 +675,16 @@ export class DataManager {
         .select()
         .single();
 
-      console.log('Supabase 응답:', { data, error });
+      console.log('Supabase 업데이트 응답:', { data, error });
 
       if (error) {
         console.error('세션 업데이트 실패:', error);
+        console.error('오류 상세:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        });
         return null;
       }
 
