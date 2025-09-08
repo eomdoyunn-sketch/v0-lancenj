@@ -438,6 +438,15 @@ const App: React.FC = () => {
           return;
       }
 
+      // 권한 체크: 기존 프로그램 수정 시
+      if (programToEdit && currentUser?.role !== 'admin') {
+        // 매니저인 경우, 프로그램이 자신의 지점에 속해있는지 확인
+        if (!currentUser?.assignedBranchIds?.includes(programToEdit.branchId)) {
+          alert('해당 지점의 프로그램만 수정할 수 있습니다.');
+          return;
+        }
+      }
+
       const programData = {
           memberIds: programFormData.memberIds,
           programName: programFormData.programName,
@@ -489,7 +498,18 @@ const App: React.FC = () => {
 
   const handleDeleteProgram = async (programId: string) => {
     const programToDelete = programs.find(p => p.id === programId);
-    if (programToDelete && window.confirm(`${programToDelete.programName} 프로그램을 삭제하시겠습니까?`)) {
+    if (!programToDelete) return;
+
+    // 권한 체크: admin이거나 해당 지점의 매니저인지 확인
+    if (currentUser?.role !== 'admin') {
+      // 매니저인 경우, 프로그램이 자신의 지점에 속해있는지 확인
+      if (!currentUser?.assignedBranchIds?.includes(programToDelete.branchId)) {
+        alert('해당 지점의 프로그램만 삭제할 수 있습니다.');
+        return;
+      }
+    }
+
+    if (window.confirm(`${programToDelete.programName} 프로그램을 삭제하시겠습니까?`)) {
         const success = await DataManager.deleteProgram(programId);
         if (success) {
           const memberName = members.find(m => programToDelete.memberIds.includes(m.id))?.name || 'Unknown';
@@ -593,6 +613,15 @@ const App: React.FC = () => {
   };
 
   const handleSaveMember = async (memberData: Omit<Member, 'id'>) => {
+    // 권한 체크: 기존 회원 수정 시
+    if (memberToEdit && currentUser?.role !== 'admin') {
+      // 매니저인 경우, 회원이 자신의 지점에 속해있는지 확인
+      if (!currentUser?.assignedBranchIds?.includes(memberToEdit.branchId)) {
+        alert('해당 지점의 회원만 수정할 수 있습니다.');
+        return;
+      }
+    }
+
     if (memberToEdit) {
       const updatedMember = await DataManager.updateMember(memberToEdit.id, memberData);
       if (updatedMember) {
@@ -611,7 +640,18 @@ const App: React.FC = () => {
 
   const handleDeleteMember = async (memberId: string) => {
     const memberToDelete = members.find(m => m.id === memberId);
-    if (memberToDelete && window.confirm(`${memberToDelete.name} 회원을 삭제하시겠습니까? 모든 관련 프로그램이 함께 삭제됩니다.`)) {
+    if (!memberToDelete) return;
+
+    // 권한 체크: admin이거나 해당 지점의 매니저인지 확인
+    if (currentUser?.role !== 'admin') {
+      // 매니저인 경우, 회원이 자신의 지점에 속해있는지 확인
+      if (!currentUser?.assignedBranchIds?.includes(memberToDelete.branchId)) {
+        alert('해당 지점의 회원만 삭제할 수 있습니다.');
+        return;
+      }
+    }
+
+    if (window.confirm(`${memberToDelete.name} 회원을 삭제하시겠습니까? 모든 관련 프로그램이 함께 삭제됩니다.`)) {
       const success = await DataManager.deleteMember(memberId);
       if (success) {
         setMembers(members.filter(m => m.id !== memberId));
@@ -633,7 +673,18 @@ const App: React.FC = () => {
     };
 
     branches.forEach(branch => {
-        const isSelected = trainer?.branchIds.includes(branch.id) || false;
+        let isSelected = false;
+        
+        if (trainer) {
+            // 기존 강사 수정 시: 기존 선택된 지점들
+            isSelected = trainer.branchIds.includes(branch.id);
+        } else {
+            // 신규 강사 등록 시: 매니저의 경우 자신의 지점 자동 선택
+            if (currentUser?.role === 'manager' && currentUser.assignedBranchIds?.includes(branch.id)) {
+                isSelected = true;
+            }
+        }
+        
         const rateInfo = trainer?.branchRates[branch.id];
         
         initialState.branches[branch.id] = {
@@ -761,6 +812,19 @@ const App: React.FC = () => {
 
   const handleSaveTrainer = async () => {
     if (!trainerFormState) return;
+
+    // 권한 체크: 기존 강사 수정 시
+    if (trainerToEdit && currentUser?.role !== 'admin') {
+      // 매니저인 경우, 강사가 자신의 지점에 속해있는지 확인
+      const hasPermission = trainerToEdit.branchIds.some(branchId => 
+        currentUser?.assignedBranchIds?.includes(branchId)
+      );
+      
+      if (!hasPermission) {
+        alert('해당 지점의 강사만 수정할 수 있습니다.');
+        return;
+      }
+    }
 
     const branchIds: string[] = [];
     const branchRates: { [key: string]: BranchRate } = {};
