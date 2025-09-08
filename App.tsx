@@ -809,7 +809,22 @@ const App: React.FC = () => {
 
   const handleDeleteTrainer = async (trainerId: string) => {
     const trainerToDelete = trainers.find(t => t.id === trainerId);
-    if (trainerToDelete && window.confirm(`${trainerToDelete.name} 강사를 삭제하시겠습니까?`)) {
+    if (!trainerToDelete) return;
+
+    // 권한 체크: admin이거나 해당 지점의 매니저인지 확인
+    if (currentUser?.role !== 'admin') {
+      // 매니저인 경우, 강사가 자신의 지점에 속해있는지 확인
+      const hasPermission = trainerToDelete.branchIds.some(branchId => 
+        currentUser?.assignedBranchIds?.includes(branchId)
+      );
+      
+      if (!hasPermission) {
+        alert('해당 지점의 강사만 삭제할 수 있습니다.');
+        return;
+      }
+    }
+
+    if (window.confirm(`${trainerToDelete.name} 강사를 삭제하시겠습니까?`)) {
         const success = await DataManager.deleteTrainer(trainerId);
         if (success) {
           setTrainers(trainers.filter(t => t.id !== trainerId));
