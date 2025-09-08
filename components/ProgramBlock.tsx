@@ -1,8 +1,39 @@
 import React from 'react';
+import { useDroppable, useDraggable } from '@dnd-kit/core';
 import { Member, MemberProgram, Session, Trainer, User } from '../types';
 import { SessionTracker } from './SessionCard';
 import { EditIcon, TrashIcon, UserIcon, CopyIcon } from './Icons';
-import { useDroppable } from '@dnd-kit/core';
+
+const DraggableTrainer: React.FC<{ trainer: Trainer }> = ({ trainer }) => {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: trainer.id,
+  });
+
+  const style = transform ? {
+    transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
+  } : undefined;
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...listeners}
+      {...attributes}
+      className={`flex items-center justify-center gap-2 cursor-grab active:cursor-grabbing ${isDragging ? 'opacity-50' : ''}`}
+    >
+      <div className={`w-6 h-6 rounded-full overflow-hidden ${trainer.color}`}>
+        {trainer.photoUrl ? (
+          <img src={trainer.photoUrl} alt={trainer.name} className="w-full h-full object-cover" />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <UserIcon className="w-3 h-3 text-white"/>
+          </div>
+        )}
+      </div>
+      <span className="text-slate-700">{trainer.name}</span>
+    </div>
+  );
+};
 
 interface ProgramRowProps {
   program: MemberProgram;
@@ -77,18 +108,7 @@ export const ProgramRow: React.FC<ProgramRowProps> = ({ program, members, sessio
       <td className="px-4 py-3 text-sm text-slate-600">{program.registrationDate}</td>
        <td className="px-4 py-3 text-sm text-center">
         {assignedTrainer ? (
-          <div className="flex items-center justify-center gap-2">
-            <div className={`w-6 h-6 rounded-full overflow-hidden ${assignedTrainer.color}`}>
-              {assignedTrainer.photoUrl ? (
-                <img src={assignedTrainer.photoUrl} alt={assignedTrainer.name} className="w-full h-full object-cover" />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center">
-                  <UserIcon className="w-3 h-3 text-white"/>
-                </div>
-              )}
-            </div>
-            <span className="text-slate-700">{assignedTrainer.name}</span>
-          </div>
+          <DraggableTrainer trainer={assignedTrainer} />
         ) : (
           <span className="text-slate-400 text-xs italic">미배정</span>
         )}

@@ -876,14 +876,29 @@ const App: React.FC = () => {
     if (!trainerToDelete) return;
 
     // 권한 체크: admin이거나 해당 지점의 매니저인지 확인
-    if (currentUser?.role !== 'admin') {
+    if (currentUser?.role !== 'admin' && currentUser?.role !== 'unassigned') {
       // 매니저인 경우, 강사가 자신의 지점에 속해있는지 확인
       const hasPermission = trainerToDelete.branchIds.some(branchId => 
         currentUser?.assignedBranchIds?.includes(branchId)
       );
       
       if (!hasPermission) {
+        console.log('권한 체크 실패:', {
+          currentUser: currentUser,
+          trainerToDelete: trainerToDelete,
+          hasPermission: hasPermission
+        });
         alert('해당 지점의 강사만 삭제할 수 있습니다.');
+        return;
+      }
+    }
+
+    // 해당 강사가 배정된 프로그램이 있는지 확인
+    const assignedPrograms = programs.filter(p => p.assignedTrainerId === trainerId);
+    
+    if (assignedPrograms.length > 0) {
+      const programNames = assignedPrograms.map(p => p.programName).join(', ');
+      if (!window.confirm(`${trainerToDelete.name} 강사는 ${programNames} 프로그램에 배정되어 있습니다.\n강사를 삭제하면 해당 프로그램들의 담당 강사가 해제됩니다.\n정말 삭제하시겠습니까?`)) {
         return;
       }
     }
@@ -892,6 +907,15 @@ const App: React.FC = () => {
         const success = await DataManager.deleteTrainer(trainerId);
         if (success) {
           setTrainers(trainers.filter(t => t.id !== trainerId));
+          // 관련 프로그램들의 담당 강사 해제
+          if (assignedPrograms.length > 0) {
+            for (const program of assignedPrograms) {
+              await DataManager.updateProgram(program.id, { assignedTrainerId: undefined });
+            }
+            setPrograms(programs.map(p => 
+              p.assignedTrainerId === trainerId ? { ...p, assignedTrainerId: undefined } : p
+            ));
+          }
           await addAuditLog('삭제', '강사', trainerToDelete.name, '강사 정보를 삭제했습니다.', trainerToDelete.branchIds[0]);
         }
     }
@@ -1299,11 +1323,12 @@ const App: React.FC = () => {
         return;
     }
 
-    // Case 3: Dragging a trainer onto a program row
+    // Case 3: Dragging a trainer onto a program row or dragging from program to trainer list
     const trainer = trainers.find(t => t.id === activeId);
     const program = programs.find(p => p.id === overId);
 
     if (trainer && program) {
+        // 강사를 프로그램에 배정
         if (!trainer.isActive) {
             alert('비활성 상태의 강사는 배정할 수 없습니다.');
             return;
@@ -1312,6 +1337,15 @@ const App: React.FC = () => {
         if (updatedProgram) {
           setPrograms(programs.map(p => p.id === updatedProgram.id ? updatedProgram : p));
           await addAuditLog('수정', '프로그램', updatedProgram.programName, `${updatedProgram.programName}에 ${trainer.name} 강사를 배정했습니다.`, updatedProgram.branchId);
+        }
+    } else if (program && (overId === 'active-droppable' || overId === 'inactive-droppable')) {
+        // 프로그램에서 강사를 제거 (미배정 상태로 변경)
+        if (program.assignedTrainerId) {
+            const updatedProgram = await DataManager.updateProgram(program.id, { assignedTrainerId: undefined });
+            if (updatedProgram) {
+              setPrograms(programs.map(p => p.id === updatedProgram.id ? updatedProgram : p));
+              await addAuditLog('수정', '프로그램', updatedProgram.programName, `${updatedProgram.programName}에서 담당 강사를 해제했습니다.`, updatedProgram.branchId);
+            }
         }
     }
   };
@@ -1703,7 +1737,7 @@ const App: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700">담당 강사</label>
                 <select
@@ -1728,6 +1762,18 @@ const App: React.FC = () => {
                   {branches.map(branch => (
                     <option key={branch.id} value={branch.id}>{branch.name}</option>
                   ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700">상태</label>
+                <select
+                  value={programFormData.status}
+                  onChange={(e) => setProgramFormData(prev => ({ ...prev, status: e.target.value as ProgramStatus }))}
+                  className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm"
+                >
+                  <option value="유효">유효</option>
+                  <option value="정지">정지</option>
+                  <option value="만료">만료</option>
                 </select>
               </div>
             </div>
