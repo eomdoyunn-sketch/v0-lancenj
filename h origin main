@@ -1,0 +1,3 @@
+[33m26767e7[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m Fix critical issues: auto-calculate unit price, add session fees fields, fix logout on save
+[33m948f915[m URGENT: Force deployment with latest code - bypass cache completely
+[33m5c8cb1c[m Fix HTML syntax error and add deployment trigger files
