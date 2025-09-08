@@ -5,6 +5,7 @@ import { ScheduleCalendar } from './ScheduleCalendar';
 interface DashboardProps {
   trainers: Trainer[];
   sessions: Session[];
+  allSessions: Session[];
   programs: MemberProgram[];
   members: Member[];
   startDate: string;
@@ -22,6 +23,7 @@ interface DashboardProps {
 export const Dashboard: React.FC<DashboardProps> = ({ 
     trainers, 
     sessions,
+    allSessions,
     programs,
     members,
     startDate,
@@ -39,13 +41,21 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const programMap = new Map(programs.map(p => [p.id, p]));
   const branchMap = new Map(allBranches.map(b => [b.id, b.name]));
 
-  // Filter data based on selected branch
-  const branchFilteredTrainers = trainers.filter(t => !filter.branchId || t.branchIds.includes(filter.branchId));
-  const sessionsForBranch = sessions.filter(s => {
+  // Filter data based on selected branch and user role
+  let branchFilteredTrainers = trainers.filter(t => !filter.branchId || t.branchIds.includes(filter.branchId));
+  console.log('Dashboard - branchFilteredTrainers:', branchFilteredTrainers.map(t => t.name));
+  let sessionsForBranch = sessions.filter(s => {
       const program = programMap.get(s.programId);
       return !filter.branchId || (program && program.branchId === filter.branchId);
   });
-  const programsForBranch = programs.filter(p => !filter.branchId || p.branchId === filter.branchId);
+  let programsForBranch = programs.filter(p => !filter.branchId || p.branchId === filter.branchId);
+
+  // 트레이너는 본인이 완료한 수업만 정산에서 조회 가능
+  let trainerStatsTrainers = branchFilteredTrainers; // 정산 테이블용
+  if (currentUser?.role === 'trainer' && currentUser.trainerProfileId) {
+    sessionsForBranch = sessionsForBranch.filter(s => s.trainerId === currentUser.trainerProfileId);
+    trainerStatsTrainers = branchFilteredTrainers.filter(t => t.id === currentUser.trainerProfileId);
+  }
 
   // Correctly parse dates in local timezone to avoid off-by-one errors
   const filterStartDate = new Date(`${startDate}T00:00:00`);
@@ -56,7 +66,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
     return sessionDate >= filterStartDate && sessionDate <= filterEndDate;
   });
 
-  const trainerStats = branchFilteredTrainers.map(trainer => {
+  const trainerStats = trainerStatsTrainers.map(trainer => {
     const completedSessions = filteredSessions.filter(s => s.trainerId === trainer.id && s.status === 'completed');
     const totalFee = completedSessions.reduce((acc, session) => acc + (session.trainerFee || 0), 0);
     return {
@@ -188,10 +198,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
         <h2 className="text-2xl font-bold text-slate-800 mb-4">전체 스케줄 현황</h2>
         <ScheduleCalendar 
             sessions={sessionsForBranch} 
-            trainers={trainers} 
+            allSessions={allSessions}
+            trainers={branchFilteredTrainers} 
             programs={programsForBranch}
             members={members}
-            onSessionEventClick={onSessionEventClick} 
+            onSessionEventClick={onSessionEventClick}
+            currentUser={currentUser}
         />
       </div>
     </div>

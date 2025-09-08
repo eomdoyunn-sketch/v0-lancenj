@@ -29,6 +29,10 @@ export const TrainerItem: React.FC<TrainerItemProps> = ({ trainer, onEdit, onDel
       // Manager can edit a trainer if they share at least one branch
       return trainer.branchIds.some(branchId => currentUser.assignedBranchIds?.includes(branchId));
     }
+    if (currentUser.role === 'trainer') {
+      // Trainer can edit their own profile
+      return trainer.id === currentUser.trainerProfileId;
+    }
     return false;
   };
 
@@ -64,18 +68,22 @@ export const TrainerItem: React.FC<TrainerItemProps> = ({ trainer, onEdit, onDel
             ))}
           </div>
         </div>
-        <span className={`ml-auto w-2.5 h-2.5 rounded-full flex-shrink-0 ${trainer.isActive ? 'bg-green-500' : 'bg-red-500'}`}></span>
+        <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${trainer.isActive ? 'bg-green-500' : 'bg-red-500'}`}></span>
       </div>
-      {canManageTrainer() && (
-        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <button onClick={(e) => { e.stopPropagation(); onEdit(); }} className="p-1.5 text-slate-500 hover:text-blue-600 rounded-full hover:bg-slate-200">
-                <SettingsIcon className="w-4 h-4"/>
-            </button>
-            <button onClick={(e) => { e.stopPropagation(); onDelete(); }} className="p-1.5 text-slate-500 hover:text-red-600 rounded-full hover:bg-slate-200">
-                <TrashIcon className="w-4 h-4"/>
-            </button>
-        </div>
-      )}
+      <div className="absolute right-8 top-1/2 -translate-y-1/2 flex items-center gap-1">
+        {/* 톱니 아이콘은 항상 보이게 (본인 정보 수정용) */}
+        {canManageTrainer() && (
+          <button onClick={(e) => { e.stopPropagation(); onEdit(); }} className="p-1.5 text-slate-500 hover:text-blue-600 rounded-full hover:bg-slate-200 opacity-100">
+            <SettingsIcon className="w-4 h-4"/>
+          </button>
+        )}
+        {/* 쓰레기통 아이콘은 트레이너가 아닌 경우에만 표시 */}
+        {canManageTrainer() && currentUser?.role !== 'trainer' && (
+          <button onClick={(e) => { e.stopPropagation(); onDelete(); }} className="p-1.5 text-slate-500 hover:text-red-600 rounded-full hover:bg-slate-200 opacity-0 group-hover:opacity-100 transition-opacity">
+            <TrashIcon className="w-4 h-4"/>
+          </button>
+        )}
+      </div>
     </div>
   );
 };

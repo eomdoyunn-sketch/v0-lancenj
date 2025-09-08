@@ -14,8 +14,14 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ trainers, onAddTrainer, onEditTrainer, onDeleteTrainer, currentUser, branches }) => {
-  const activeTrainers = trainers.filter(t => t.isActive);
-  const inactiveTrainers = trainers.filter(t => !t.isActive);
+  // 트레이너는 본인만 볼 수 있음
+  let filteredTrainers = trainers;
+  if (currentUser?.role === 'trainer' && currentUser.trainerProfileId) {
+    filteredTrainers = trainers.filter(t => t.id === currentUser.trainerProfileId);
+  }
+  
+  const activeTrainers = filteredTrainers.filter(t => t.isActive);
+  const inactiveTrainers = filteredTrainers.filter(t => !t.isActive);
 
   const { setNodeRef: setActiveRef, isOver: isOverActive } = useDroppable({ id: 'active-droppable' });
   const { setNodeRef: setInactiveRef, isOver: isOverInactive } = useDroppable({ id: 'inactive-droppable' });

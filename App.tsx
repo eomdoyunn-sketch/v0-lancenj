@@ -83,10 +83,12 @@ const App: React.FC = () => {
   const [members, setMembers] = useState<Member[]>([]);
   const [trainers, setTrainers] = useState<Trainer[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
+  const [allSessions, setAllSessions] = useState<Session[]>([]);
   const [programPresets, setProgramPresets] = useState<ProgramPreset[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
+  const [allBranches, setAllBranches] = useState<Branch[]>([]);
   
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [currentView, setCurrentView] = useState<View>('programs');
@@ -161,6 +163,10 @@ const App: React.FC = () => {
             DataManager.getAuditLogs()
         ]);
 
+        // 모든 지점 데이터를 상태로 설정
+        setAllBranches(allBranches);
+        setAllSessions(allSessions);
+
         if (currentUser.role === 'manager' && currentUser.assignedBranchIds && currentUser.assignedBranchIds.length > 0) {
             const managerBranches = currentUser.assignedBranchIds;
 
@@ -183,6 +189,54 @@ const App: React.FC = () => {
             setSessions(filteredSessions);
             setProgramPresets(filteredPresets);
             setAuditLogs(filteredLogs);
+        } else if (currentUser.role === 'trainer' && currentUser.trainerProfileId) {
+            // Trainer sees only their own data
+            const trainerProfile = allTrainers.find(t => t.id === currentUser.trainerProfileId);
+            if (trainerProfile) {
+                const trainerBranches = trainerProfile.branchIds;
+
+                // Only show branches that the trainer is assigned to
+                const filteredBranches = allBranches.filter(b => trainerBranches.includes(b.id));
+                setBranches(filteredBranches);
+
+                // Show all trainers in the same branch (for schedule view)
+                const filteredTrainers = allTrainers.filter(t => 
+                    t.isActive && t.branchIds.some(branchId => trainerBranches.includes(branchId))
+                );
+                setTrainers(filteredTrainers);
+                console.log('App.tsx - 지점 전체 강사들:', filteredTrainers.map(t => t.name));
+
+                // Filter programs by trainer assignment
+                const filteredPrograms = allPrograms.filter(p => 
+                    p.assignedTrainerId === currentUser.trainerProfileId
+                );
+
+                // Filter members by assigned trainer (only members assigned to this trainer)
+                const filteredMembers = allMembers.filter(m => 
+                    m.assignedTrainerId === currentUser.trainerProfileId
+                );
+
+                // Filter sessions: only own sessions (ScheduleCalendar will handle branch-wide sessions for trainer view)
+                const filteredSessions = allSessions.filter(s => s.trainerId === currentUser.trainerProfileId);
+                console.log('App.tsx - 본인 세션들:', filteredSessions.length);
+
+                // Filter presets by trainer's branches
+                const filteredPresets = allPresets.filter(p => 
+                    p.branchId && trainerBranches.includes(p.branchId)
+                );
+
+                // Filter logs by trainer's programs
+                const programIds = filteredPrograms.map(p => p.id);
+                const filteredLogs = allLogs.filter(l => 
+                    l.branchId && trainerBranches.includes(l.branchId)
+                );
+
+                setMembers(filteredMembers);
+                setPrograms(filteredPrograms);
+                setSessions(filteredSessions);
+                setProgramPresets(filteredPresets);
+                setAuditLogs(filteredLogs);
+            }
         } else {
             // Admin sees all data
             setBranches(allBranches);
@@ -193,11 +247,22 @@ const App: React.FC = () => {
             setAuditLogs(allLogs);
         }
 
-        // Filter trainers by manager's branches
+        // Filter trainers by role
         if (currentUser.role === 'manager' && currentUser.assignedBranchIds && currentUser.assignedBranchIds.length > 0) {
             const managerBranches = currentUser.assignedBranchIds;
             const filteredTrainersForManager = allTrainers.filter(t => t.branchIds.some(branchId => managerBranches.includes(branchId)));
             setTrainers(filteredTrainersForManager);
+        } else if (currentUser.role === 'trainer' && currentUser.trainerProfileId) {
+            // Trainer sees only their own profile and other trainers in their branches
+            const trainerProfile = allTrainers.find(t => t.id === currentUser.trainerProfileId);
+            if (trainerProfile) {
+                const trainerBranches = trainerProfile.branchIds;
+                const filteredTrainersForTrainer = allTrainers.filter(t => 
+                    t.id === currentUser.trainerProfileId || 
+                    t.branchIds.some(branchId => trainerBranches.includes(branchId))
+                );
+                setTrainers(filteredTrainersForTrainer);
+            }
         } else {
             setTrainers(allTrainers); // Admin sees all trainers
         }
@@ -216,14 +281,15 @@ const App: React.FC = () => {
     AuthService.initialize();
     
     // Load branches data even before login (needed for signup form)
-    const loadBranches = async () => {
-      try {
-        const allBranches = await DataManager.getBranches();
-        setBranches(allBranches);
-      } catch (error) {
-        console.error('지점 데이터 로딩 실패:', error);
-      }
-    };
+  const loadBranches = async () => {
+    try {
+      const allBranchesData = await DataManager.getBranches();
+      setAllBranches(allBranchesData);
+      setBranches(allBranchesData);
+    } catch (error) {
+      console.error('지점 데이터 로딩 실패:', error);
+    }
+  };
     
     loadBranches();
     
@@ -241,12 +307,21 @@ const App: React.FC = () => {
     if (currentUser) {
       fetchInitialData();
       
-      // Set default branch filters for managers
+      // Set default branch filters for managers and trainers
       if (currentUser.role === 'manager' && currentUser.assignedBranchIds && currentUser.assignedBranchIds.length > 0) {
         const defaultBranch = currentUser.assignedBranchIds[0];
         setProgramFilter(prev => ({ ...prev, branchId: defaultBranch }));
         setMemberFilter(prev => ({ ...prev, branchId: defaultBranch }));
         setDashboardFilter(prev => ({ ...prev, branchId: defaultBranch }));
+      } else if (currentUser.role === 'trainer' && currentUser.trainerProfileId) {
+        // 트레이너의 경우 trainerProfile에서 지점 정보 가져오기
+        const trainerProfile = trainers.find(t => t.id === currentUser.trainerProfileId);
+        if (trainerProfile && trainerProfile.branchIds.length > 0) {
+          const defaultBranch = trainerProfile.branchIds[0];
+          setProgramFilter(prev => ({ ...prev, branchId: defaultBranch }));
+          setMemberFilter(prev => ({ ...prev, branchId: defaultBranch }));
+          setDashboardFilter(prev => ({ ...prev, branchId: defaultBranch }));
+        }
       }
 
       
@@ -341,7 +416,21 @@ const App: React.FC = () => {
     setAuditLogs([]);
     setUsers([]);
     setBranches([]);
+    setAllBranches([]);
+    setAllSessions([]);
     setIsLoading(false);
+    
+    // 로그아웃 후 지점 데이터 다시 로드
+    const loadBranches = async () => {
+      try {
+        const allBranchesData = await DataManager.getBranches();
+        setAllBranches(allBranchesData);
+        setBranches(allBranchesData);
+      } catch (error) {
+        console.error('지점 데이터 로딩 실패:', error);
+      }
+    };
+    loadBranches();
   };
   
   const handleOpenProgramModal = (program: MemberProgram | null) => {
@@ -359,9 +448,16 @@ const App: React.FC = () => {
         const defaultBranchId = (currentUser?.role === 'manager' && currentUser.assignedBranchIds && currentUser.assignedBranchIds.length > 0) 
             ? currentUser.assignedBranchIds[0] 
             : (branches.length > 0 ? branches[0].id : '');
+        
+        // 트레이너의 경우 본인이 기본 담당 강사로 설정
+        const defaultTrainerId = (currentUser?.role === 'trainer' && currentUser.trainerProfileId) 
+            ? currentUser.trainerProfileId 
+            : '';
+        
         setProgramFormData({
             ...initialProgramFormData,
             branchId: defaultBranchId,
+            assignedTrainerId: defaultTrainerId,
         });
     }
     setProgramModalOpen(true);
@@ -440,10 +536,18 @@ const App: React.FC = () => {
 
       // 권한 체크: 기존 프로그램 수정 시
       if (programToEdit && currentUser?.role !== 'admin') {
-        // 매니저인 경우, 프로그램이 자신의 지점에 속해있는지 확인
-        if (!currentUser?.assignedBranchIds?.includes(programToEdit.branchId)) {
-          alert('해당 지점의 프로그램만 수정할 수 있습니다.');
-          return;
+        if (currentUser?.role === 'manager') {
+          // 매니저인 경우, 프로그램이 자신의 지점에 속해있는지 확인
+          if (!currentUser?.assignedBranchIds?.includes(programToEdit.branchId)) {
+            alert('해당 지점의 프로그램만 수정할 수 있습니다.');
+            return;
+          }
+        } else if (currentUser?.role === 'trainer') {
+          // 트레이너인 경우, 본인이 담당하는 프로그램만 수정 가능
+          if (programToEdit.assignedTrainerId !== currentUser.trainerProfileId) {
+            alert('본인이 담당하는 프로그램만 수정할 수 있습니다.');
+            return;
+          }
         }
       }
 
@@ -470,9 +574,37 @@ const App: React.FC = () => {
 
       let result;
       if (programToEdit && programToEdit.id) {
+        // 담당 강사가 변경되었는지 확인
+        const trainerChanged = programToEdit.assignedTrainerId !== programData.assignedTrainerId;
+        const oldTrainerId = programToEdit.assignedTrainerId;
+        const newTrainerId = programData.assignedTrainerId;
+        
         result = await DataManager.updateProgram(programToEdit.id, programData);
         if (result) {
           setPrograms(programs.map(p => p.id === result.id ? result : p));
+          
+          // 담당 강사가 변경된 경우, 관련 세션들도 업데이트
+          if (trainerChanged && newTrainerId) {
+            console.log('담당 강사 변경됨:', oldTrainerId, '->', newTrainerId);
+            
+            // 해당 프로그램의 모든 세션을 찾아서 업데이트
+            const programSessions = sessions.filter(s => s.programId === programToEdit.id);
+            console.log('업데이트할 세션들:', programSessions.length);
+            
+            for (const session of programSessions) {
+              // 완료되지 않은 세션만 새로운 강사에게 할당
+              if (session.status !== 'completed') {
+                console.log('세션 업데이트:', session.id, '새 강사:', newTrainerId);
+                await DataManager.updateSession(session.id, { trainerId: newTrainerId });
+              } else {
+                console.log('완료된 세션 유지:', session.id, '기존 강사:', session.trainerId);
+              }
+            }
+            
+            // 세션 목록 새로고침
+            await fetchInitialData();
+          }
+          
           await addAuditLog('수정', '프로그램', result.programName, `${memberNames} 회원의 프로그램을 수정했습니다.`, result.branchId);
           alert('프로그램이 수정되었습니다.');
         }
@@ -591,10 +723,19 @@ const App: React.FC = () => {
   const handleOpenMemberModal = (member: Member | null) => {
     setMemberToEdit(member);
     
-    // 매니저의 경우 소속 지점을 기본값으로 설정
+    // 매니저와 트레이너의 경우 소속 지점을 기본값으로 설정
     const defaultData: Partial<Member> = member || {};
     if (!member && currentUser?.role === 'manager' && currentUser.assignedBranchIds && currentUser.assignedBranchIds.length > 0) {
       defaultData.branchId = currentUser.assignedBranchIds[0];
+    } else if (!member && currentUser?.role === 'trainer' && currentUser.trainerProfileId) {
+      // 트레이너의 경우 trainerProfile에서 지점 정보 가져오기
+      const trainerProfile = trainers.find(t => t.id === currentUser.trainerProfileId);
+      if (trainerProfile && trainerProfile.branchIds.length > 0) {
+        defaultData.branchId = trainerProfile.branchIds[0];
+        defaultData.assignedTrainerId = currentUser.trainerProfileId; // 담당 강사를 본인으로 설정
+        console.log('트레이너 회원 추가 - 기본값 설정:', defaultData);
+        console.log('currentUser.trainerProfileId:', currentUser.trainerProfileId);
+      }
     }
     
     setMemberFormData(defaultData);
@@ -613,6 +754,19 @@ const App: React.FC = () => {
   };
 
   const handleSaveMember = async (memberData: Omit<Member, 'id'>) => {
+    console.log('=== 회원 저장 시작 ===');
+    console.log('memberData:', memberData);
+    console.log('memberToEdit:', memberToEdit);
+    console.log('currentUser:', currentUser);
+    console.log('memberData.assignedTrainerId:', memberData.assignedTrainerId);
+    console.log('memberData.assignedTrainerId 타입:', typeof memberData.assignedTrainerId);
+    
+    // 트레이너의 경우 assignedTrainerId가 없으면 강제로 설정
+    if (!memberToEdit && currentUser?.role === 'trainer' && currentUser.trainerProfileId && !memberData.assignedTrainerId) {
+      memberData.assignedTrainerId = currentUser.trainerProfileId;
+      console.log('트레이너 assignedTrainerId 강제 설정:', memberData.assignedTrainerId);
+    }
+    
     // 권한 체크: 기존 회원 수정 시
     if (memberToEdit && currentUser?.role !== 'admin') {
       // 매니저인 경우, 회원이 자신의 지점에 속해있는지 확인
@@ -622,20 +776,34 @@ const App: React.FC = () => {
       }
     }
 
-    if (memberToEdit) {
-      const updatedMember = await DataManager.updateMember(memberToEdit.id, memberData);
-      if (updatedMember) {
-        setMembers(members.map(m => m.id === updatedMember.id ? updatedMember : m));
-        await addAuditLog('수정', '사용자', updatedMember.name, `회원 정보를 수정했습니다.`, updatedMember.branchId);
+    try {
+      if (memberToEdit) {
+        console.log('기존 회원 수정 중...');
+        const updatedMember = await DataManager.updateMember(memberToEdit.id, memberData);
+        console.log('수정 결과:', updatedMember);
+        if (updatedMember) {
+          setMembers(members.map(m => m.id === updatedMember.id ? updatedMember : m));
+          await addAuditLog('수정', '사용자', updatedMember.name, `회원 정보를 수정했습니다.`, updatedMember.branchId);
+        }
+      } else {
+        console.log('신규 회원 생성 중...');
+        const newMember = await DataManager.createMember(memberData);
+        console.log('생성 결과:', newMember);
+        if (newMember) {
+          // 회원 목록을 다시 불러와서 최신 데이터로 업데이트
+          await fetchInitialData();
+          await addAuditLog('생성', '사용자', newMember.name, `신규 회원을 등록했습니다.`, newMember.branchId);
+          console.log('회원 목록 업데이트 완료');
+        } else {
+          console.error('회원 생성 실패');
+        }
       }
-    } else {
-      const newMember = await DataManager.createMember(memberData);
-      if (newMember) {
-        setMembers([...members, newMember]);
-        await addAuditLog('생성', '사용자', newMember.name, `신규 회원을 등록했습니다.`, newMember.branchId);
-      }
+    } catch (error) {
+      console.error('회원 저장 중 오류:', error);
     }
+    
     handleCloseMemberModal();
+    console.log('=== 회원 저장 완료 ===');
   };
 
   const handleDeleteMember = async (memberId: string) => {
@@ -815,14 +983,22 @@ const App: React.FC = () => {
 
     // 권한 체크: 기존 강사 수정 시
     if (trainerToEdit && currentUser?.role !== 'admin') {
-      // 매니저인 경우, 강사가 자신의 지점에 속해있는지 확인
-      const hasPermission = trainerToEdit.branchIds.some(branchId => 
-        currentUser?.assignedBranchIds?.includes(branchId)
-      );
-      
-      if (!hasPermission) {
-        alert('해당 지점의 강사만 수정할 수 있습니다.');
-        return;
+      // 트레이너인 경우, 본인 정보만 수정 가능
+      if (currentUser?.role === 'trainer' && currentUser.trainerProfileId) {
+        if (trainerToEdit.id !== currentUser.trainerProfileId) {
+          alert('본인 정보만 수정할 수 있습니다.');
+          return;
+        }
+      } else if (currentUser?.role === 'manager') {
+        // 매니저인 경우, 강사가 자신의 지점에 속해있는지 확인
+        const hasPermission = trainerToEdit.branchIds.some(branchId => 
+          currentUser?.assignedBranchIds?.includes(branchId)
+        );
+        
+        if (!hasPermission) {
+          alert('해당 지점의 강사만 수정할 수 있습니다.');
+          return;
+        }
       }
     }
 
@@ -999,6 +1175,57 @@ const App: React.FC = () => {
         : `${updatedUser.name} 사용자의 모든 지점 배정을 해제했습니다.`;
       
       await addAuditLog('수정', '사용자', updatedUser.name || 'N/A', logDetails);
+    }
+  };
+
+  const handleUpdateUserRole = async (userId: string, newRole: UserRole, branchId?: string) => {
+    const user = users.find(u => u.id === userId);
+    if (!user) return;
+
+    const updates: Partial<User> = {
+      role: newRole
+    };
+
+    // 트레이너로 변경 시 자동으로 첫 번째 지점에 배정
+    if (newRole === 'trainer' && branchId) {
+      // 트레이너 프로필 생성 또는 기존 프로필 연결
+      const existingTrainer = trainers.find(t => t.name === user.name);
+      if (existingTrainer) {
+        updates.trainerProfileId = existingTrainer.id;
+      } else {
+        // 새 트레이너 프로필 생성
+        const newTrainer = await DataManager.createTrainer({
+          name: user.name || 'Unknown',
+          branchIds: [branchId],
+          branchRates: [{ branchId, type: 'percentage' as RateType, value: 30 }],
+          color: availableColors[Math.floor(Math.random() * availableColors.length)].replace('bg-', ''),
+          isActive: true
+        });
+        
+        if (newTrainer) {
+          updates.trainerProfileId = newTrainer.id;
+          setTrainers(prev => [...prev, newTrainer]);
+        }
+      }
+    } else if (newRole === 'manager' && branchId) {
+      updates.assignedBranchIds = [branchId];
+      updates.trainerProfileId = null; // 매니저로 변경 시 트레이너 프로필 제거
+    } else if (newRole === 'unassigned') {
+      updates.assignedBranchIds = [];
+      updates.trainerProfileId = null;
+    }
+
+    const updatedUser = await handleUpdateUserPermissions(userId, updates);
+    if (updatedUser) {
+      const roleNames = {
+        admin: '관리자',
+        manager: '매니저',
+        trainer: '트레이너',
+        unassigned: '미배정'
+      };
+      
+      const logDetails = `${updatedUser.name} 사용자의 역할을 ${roleNames[newRole]}로 변경했습니다.`;
+      await addAuditLog('수정', '사용자', updatedUser.name, logDetails);
     }
   };
     
@@ -1251,10 +1478,93 @@ const App: React.FC = () => {
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
-    if (!over) return;
+    console.log('드래그 이벤트 발생:', { activeId: active.id, overId: over?.id });
+    
+    if (!over) {
+      console.log('드롭 대상이 없음');
+      return;
+    }
 
     const activeId = active.id.toString();
     const overId = over.id.toString();
+    
+    console.log('드래그 처리 시작:', { activeId, overId });
+
+    // Case 4: Dragging a trainer from program to trainer list (unassign) - 먼저 처리
+    console.log('Case 4 체크:', { 
+        startsWithProgram: activeId.startsWith('program-'), 
+        includesTrainer: activeId.includes('-trainer-'),
+        activeId,
+        overId 
+    });
+    
+    if (activeId.startsWith('program-') && activeId.includes('-trainer-')) {
+        console.log('=== 프로그램에서 강사 드래그 감지 ===');
+        console.log('activeId:', activeId);
+        console.log('overId:', overId);
+        
+        // ID 패턴: program-{programId}-trainer-{trainerId}
+        // 더 간단한 방법으로 파싱
+        const programTrainerMatch = activeId.match(/^program-(.+)-trainer-(.+)$/);
+        
+        if (programTrainerMatch) {
+            const programId = programTrainerMatch[1];
+            const trainerId = programTrainerMatch[2];
+            
+            console.log('정규식 파싱 결과:', { programId, trainerId });
+            
+            const draggedTrainer = trainers.find(t => t.id === trainerId);
+            const targetProgram = programs.find(p => p.id === programId);
+            
+            console.log('찾은 객체들:', { 
+                draggedTrainer: draggedTrainer ? { id: draggedTrainer.id, name: draggedTrainer.name } : '없음', 
+                targetProgram: targetProgram ? { id: targetProgram.id, name: targetProgram.programName } : '없음',
+                overId,
+                isActiveDroppable: overId === 'active-droppable',
+                isInactiveDroppable: overId === 'inactive-droppable'
+            });
+            
+            if (draggedTrainer && targetProgram && (overId === 'active-droppable' || overId === 'inactive-droppable')) {
+                console.log('=== 강사 해제 실행 시작 ===');
+                console.log('프로그램:', targetProgram.programName);
+                console.log('강사:', draggedTrainer.name);
+                console.log('현재 assignedTrainerId:', targetProgram.assignedTrainerId);
+                
+                try {
+                    // 해당 프로그램에서 강사를 해제
+                    console.log('DataManager.updateProgram 호출 중...');
+                    const updatedProgram = await DataManager.updateProgram(targetProgram.id, { assignedTrainerId: null });
+                    console.log('DataManager.updateProgram 결과:', updatedProgram);
+                    
+                    if (updatedProgram) {
+                      console.log('상태 업데이트 중...');
+                      setPrograms(programs.map(p => p.id === updatedProgram.id ? updatedProgram : p));
+                      console.log('상태 업데이트 완료');
+                      
+                      console.log('감사 로그 추가 중...');
+                      await addAuditLog('수정', '프로그램', updatedProgram.programName, `${updatedProgram.programName}에서 ${draggedTrainer.name} 강사를 해제했습니다.`, updatedProgram.branchId);
+                      console.log('감사 로그 추가 완료');
+                      
+                      console.log('=== 강사 해제 완료 ===');
+                    } else {
+                      console.error('강사 해제 실패: DataManager.updateProgram이 null 반환');
+                    }
+                } catch (error) {
+                    console.error('강사 해제 중 오류:', error);
+                }
+            } else {
+                console.log('조건 불일치로 해제하지 않음');
+                console.log('조건 체크:', {
+                    hasDraggedTrainer: !!draggedTrainer,
+                    hasTargetProgram: !!targetProgram,
+                    isCorrectOverId: overId === 'active-droppable' || overId === 'inactive-droppable'
+                });
+            }
+        } else {
+            console.log('정규식 매칭 실패:', activeId);
+        }
+        return; // 이 케이스가 처리되었으므로 다른 로직 실행하지 않음
+    }
 
     // Case 1: Dragging a trainer to activate/deactivate in the sidebar
     if (overId === 'active-droppable' || overId === 'inactive-droppable') {
@@ -1323,7 +1633,7 @@ const App: React.FC = () => {
         return;
     }
 
-    // Case 3: Dragging a trainer onto a program row
+    // Case 3: Dragging a trainer from sidebar onto a program row
     const trainer = trainers.find(t => t.id === activeId);
     const program = programs.find(p => p.id === overId);
 
@@ -1340,19 +1650,6 @@ const App: React.FC = () => {
         }
     }
 
-    // Case 4: Dragging a trainer from program to trainer list (unassign)
-    const draggedTrainer = trainers.find(t => t.id === activeId);
-    if (draggedTrainer && (overId === 'active-droppable' || overId === 'inactive-droppable')) {
-        // 해당 강사가 배정된 프로그램을 찾아서 해제
-        const assignedProgram = programs.find(p => p.assignedTrainerId === draggedTrainer.id);
-        if (assignedProgram) {
-            const updatedProgram = await DataManager.updateProgram(assignedProgram.id, { assignedTrainerId: undefined });
-            if (updatedProgram) {
-              setPrograms(programs.map(p => p.id === updatedProgram.id ? updatedProgram : p));
-              await addAuditLog('수정', '프로그램', updatedProgram.programName, `${updatedProgram.programName}에서 ${draggedTrainer.name} 강사를 해제했습니다.`, updatedProgram.branchId);
-            }
-        }
-    }
   };
 
   const handleSetProgramFilter = (newFilter: typeof programFilter) => {
@@ -1374,7 +1671,20 @@ const App: React.FC = () => {
   }
 
   if (!currentUser) {
-    return <Auth allBranches={branches} onLogin={handleLogin} />;
+    // 로그인하지 않은 상태에서는 모든 지점을 표시
+    // 지점 데이터가 로드될 때까지 기다림
+    if (allBranches.length === 0) {
+      return (
+        <div className="h-screen w-screen flex flex-col justify-center items-center bg-slate-100">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
+            <p className="text-gray-600">지점 정보를 불러오는 중...</p>
+          </div>
+        </div>
+      );
+    }
+    
+    return <Auth allBranches={allBranches} onLogin={handleLogin} />;
   }
 
   if (currentUser.role === 'unassigned') {
@@ -1411,7 +1721,7 @@ const App: React.FC = () => {
     if (currentUser?.role === 'manager' && currentUser.assignedBranchIds) {
       return t.branchIds.some(branchId => currentUser.assignedBranchIds!.includes(branchId));
     }
-    // 관리자는 모든 강사 표시
+    // 관리자와 트레이너는 모든 강사 표시 (트레이너는 Sidebar에서 본인만 필터링)
     return true;
   });
 
@@ -1462,16 +1772,16 @@ const App: React.FC = () => {
 
   return (
     <DndContext onDragEnd={handleDragEnd}>
-    <div className="h-screen flex flex-col">
+    <div className="h-screen flex flex-col overflow-hidden">
       <Header currentView={currentView} setCurrentView={setViewWithPermissions} currentUser={currentUser} onLogout={handleLogout} />
       <div className="flex flex-1 overflow-hidden">
         <main className="flex-1 flex overflow-hidden">
           {currentView === 'programs' && <ProgramTable programs={filteredPrograms} members={members} sessions={sessions} trainers={filteredTrainersForDisplay} onAddProgram={() => handleOpenProgramModal(null)} onEditProgram={handleOpenProgramModal} onReRegisterProgram={(p) => handleOpenProgramModal({...p, id: ``, registrationType: '재등록', completedSessions: 0, status: '유효'})} onDeleteProgram={handleDeleteProgram} onSessionClick={handleSessionClick} filter={programFilter} setFilter={handleSetProgramFilter} allBranches={branches} onShowTooltip={(content, rect) => setTooltip({ content, rect })} onHideTooltip={() => setTooltip(null)} currentUser={currentUser} />}
-          {currentView === 'dashboard' && <Dashboard trainers={filteredTrainersForDisplay} sessions={sessions} programs={programs} members={members} startDate={filterStartDate} endDate={filterEndDate} setStartDate={setFilterStartDate} setEndDate={setFilterEndDate} onTrainerClick={(trainerId) => { const t = trainers.find(t=>t.id===trainerId); if(t) {setSelectedTrainerForDetail(t); setTrainerDetailModalOpen(true);}}} onSessionEventClick={handleCalendarSessionClick} allBranches={branches} filter={dashboardFilter} setFilter={setDashboardFilter} currentUser={currentUser} />}
+          {currentView === 'dashboard' && <Dashboard trainers={filteredTrainersForDisplay} sessions={sessions} allSessions={allSessions} programs={programs} members={members} startDate={filterStartDate} endDate={filterEndDate} setStartDate={setFilterStartDate} setEndDate={setFilterEndDate} onTrainerClick={(trainerId) => { const t = trainers.find(t=>t.id===trainerId); if(t) {setSelectedTrainerForDetail(t); setTrainerDetailModalOpen(true);}}} onSessionEventClick={handleCalendarSessionClick} allBranches={branches} filter={dashboardFilter} setFilter={setDashboardFilter} currentUser={currentUser} />}
           {/* FIX: Changed setFilter to setMemberFilter to pass the correct state updater function. */}
           {currentView === 'members' && <MemberManagement members={filteredMembers} programs={programs} sessions={sessions} onAddMember={() => handleOpenMemberModal(null)} onEditMember={handleOpenMemberModal} onDeleteMember={handleDeleteMember} onMemberClick={handleMemberClick} allBranches={branches} filter={memberFilter} setFilter={setMemberFilter} currentUser={currentUser} />}
           {currentView === 'logs' && <LogManagement logs={auditLogs} branches={branches} currentUser={currentUser} />}
-          {currentView === 'management' && <ManagementView currentUser={currentUser} users={users} trainers={trainers} allBranches={branches} presets={programPresets} onAddUser={(context) => handleOpenUserModal(null, context)} onDeleteUser={handleDeleteUser} onUpdateManagerBranches={handleUpdateManagerBranches} onAddPreset={() => handleOpenPresetModal(null)} onEditPreset={handleOpenPresetModal} onDeletePreset={handleDeletePreset} onAddBranch={() => handleOpenBranchModal(null)} onEditBranch={handleOpenBranchModal} onDeleteBranch={handleDeleteBranch} />}
+          {currentView === 'management' && <ManagementView currentUser={currentUser} users={users} trainers={trainers} allBranches={branches} presets={programPresets} onAddUser={(context) => handleOpenUserModal(null, context)} onDeleteUser={handleDeleteUser} onUpdateManagerBranches={handleUpdateManagerBranches} onUpdateUserRole={handleUpdateUserRole} onAddPreset={() => handleOpenPresetModal(null)} onEditPreset={handleOpenPresetModal} onDeletePreset={handleDeletePreset} onAddBranch={() => handleOpenBranchModal(null)} onEditBranch={handleOpenBranchModal} onDeleteBranch={handleDeleteBranch} />}
         </main>
         {currentView === 'programs' && <Sidebar trainers={filteredTrainersForDisplay} onAddTrainer={() => handleOpenTrainerModal(null)} onEditTrainer={handleOpenTrainerModal} onDeleteTrainer={handleDeleteTrainer} currentUser={currentUser} branches={branches} />}
       </div>
@@ -1603,7 +1913,24 @@ const App: React.FC = () => {
             <div>
               <label className="block text-sm font-medium text-slate-700">회원 선택</label>
               <div className="mt-2 space-y-2 max-h-32 overflow-y-auto border border-slate-300 rounded-md p-2">
-                {members.map(member => (
+                {members.filter(member => {
+                  // 프로그램 수정 시에는 이미 배정된 회원만 표시
+                  if (programToEdit) {
+                    return programToEdit.memberIds.includes(member.id);
+                  }
+                  
+                  // 신규 등록 시
+                  // 트레이너의 경우 본인이 담당하는 회원만 표시
+                  if (currentUser?.role === 'trainer' && currentUser.trainerProfileId) {
+                    return member.assignedTrainerId === currentUser.trainerProfileId;
+                  }
+                  // 프로그램에서 담당 강사가 선택된 경우, 해당 강사의 회원만 표시
+                  if (programFormData.assignedTrainerId) {
+                    return member.assignedTrainerId === programFormData.assignedTrainerId;
+                  }
+                  // 관리자/매니저는 모든 회원 표시
+                  return true;
+                }).map(member => (
                   <label key={member.id} className="flex items-center">
                     <input
                       type="checkbox"
@@ -1747,11 +2074,38 @@ const App: React.FC = () => {
                 <label className="block text-sm font-medium text-slate-700">담당 강사</label>
                 <select
                   value={programFormData.assignedTrainerId}
-                  onChange={(e) => setProgramFormData(prev => ({ ...prev, assignedTrainerId: e.target.value }))}
+                  onChange={(e) => {
+                    const selectedTrainerId = e.target.value;
+                    setProgramFormData(prev => ({ 
+                      ...prev, 
+                      assignedTrainerId: selectedTrainerId,
+                      // 프로그램 수정 시에는 회원 목록을 유지하되, 담당 강사만 변경
+                      // 신규 등록 시에만 회원 목록을 필터링
+                      memberIds: programToEdit ? prev.memberIds : (selectedTrainerId ? prev.memberIds.filter(memberId => {
+                        const member = members.find(m => m.id === memberId);
+                        return member && member.assignedTrainerId === selectedTrainerId;
+                      }) : [])
+                    }));
+                  }}
                   className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm"
                 >
                   <option value="">강사 선택</option>
-                  {filteredTrainersForModal.map(trainer => (
+                  {filteredTrainersForModal.filter(trainer => {
+                    // 트레이너의 경우
+                    if (currentUser?.role === 'trainer' && currentUser.trainerProfileId) {
+                      // 신규 등록 시에는 본인만 표시
+                      if (!programToEdit) {
+                        return trainer.id === currentUser.trainerProfileId;
+                      }
+                      // 수정 시에는 지점 전체 강사 표시
+                      const currentTrainer = trainers.find(t => t.id === currentUser.trainerProfileId);
+                      if (currentTrainer) {
+                        return trainer.branchIds.some(branchId => currentTrainer.branchIds.includes(branchId));
+                      }
+                    }
+                    // 관리자/매니저는 모든 강사 표시
+                    return true;
+                  }).map(trainer => (
                     <option key={trainer.id} value={trainer.id}>{trainer.name}</option>
                   ))}
                 </select>
@@ -1976,6 +2330,21 @@ const App: React.FC = () => {
                         </select>
                     </div>
                 </div>
+                {currentUser?.role !== 'trainer' && (
+                    <div><label className="block text-sm font-medium text-slate-700">담당 강사</label>
+                        <select name="assignedTrainerId" value={memberFormData.assignedTrainerId || ''} onChange={(e) => setMemberFormData({...memberFormData, assignedTrainerId: e.target.value})} className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm">
+                            <option value="">담당 강사를 선택하세요</option>
+                            {trainers.filter(t => t.isActive).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                        </select>
+                    </div>
+                )}
+                {currentUser?.role === 'trainer' && (
+                    <div><label className="block text-sm font-medium text-slate-700">담당 강사</label>
+                        <div className="mt-1 block w-full px-3 py-2 bg-slate-100 border border-slate-300 rounded-md text-slate-600">
+                            {trainers.find(t => t.id === currentUser.trainerProfileId)?.name || '본인'}
+                        </div>
+                    </div>
+                )}
                 <div><label className="block text-sm font-medium text-slate-700">메모</label><textarea name="memo" value={memberFormData.memo || ''} onChange={(e) => setMemberFormData({...memberFormData, memo: e.target.value})} rows={4} className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm"/></div>
             </div>)}
 

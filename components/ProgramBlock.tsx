@@ -4,13 +4,14 @@ import { Member, MemberProgram, Session, Trainer, User } from '../types';
 import { SessionTracker } from './SessionCard';
 import { EditIcon, TrashIcon, UserIcon, CopyIcon } from './Icons';
 
-const DraggableTrainer: React.FC<{ trainer: Trainer }> = ({ trainer }) => {
+const DraggableTrainer: React.FC<{ trainer: Trainer; programId: string }> = ({ trainer, programId }) => {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
-    id: trainer.id,
+    id: `program-${programId}-trainer-${trainer.id}`,
   });
 
   const style = transform ? {
     transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
+    zIndex: 1000,
   } : undefined;
 
   return (
@@ -19,7 +20,7 @@ const DraggableTrainer: React.FC<{ trainer: Trainer }> = ({ trainer }) => {
       style={style}
       {...listeners}
       {...attributes}
-      className={`flex items-center justify-center gap-2 cursor-move hover:bg-slate-100 rounded-md p-1 transition-colors ${isDragging ? 'opacity-50 bg-slate-200' : ''}`}
+      className={`flex items-center justify-center gap-2 cursor-move hover:bg-slate-100 rounded-md p-1 transition-colors select-none ${isDragging ? 'opacity-50 bg-slate-200 z-50' : ''}`}
     >
       <div className={`w-6 h-6 rounded-full overflow-hidden ${trainer.color}`}>
         {trainer.photoUrl ? (
@@ -108,7 +109,7 @@ export const ProgramRow: React.FC<ProgramRowProps> = ({ program, members, sessio
       <td className="px-4 py-3 text-sm text-slate-600">{program.registrationDate}</td>
        <td className="px-4 py-3 text-sm text-center">
         {assignedTrainer ? (
-          <DraggableTrainer trainer={assignedTrainer} />
+          <DraggableTrainer trainer={assignedTrainer} programId={program.id} />
         ) : (
           <span className="text-slate-400 text-xs italic">미배정</span>
         )}

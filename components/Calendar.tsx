@@ -40,7 +40,7 @@ export const ProgramTable: React.FC<ProgramTableProps> = ({
   onHideTooltip,
   currentUser
 }) => {
-  const canAddProgram = currentUser && (currentUser.role === 'admin' || currentUser.role === 'manager');
+  const canAddProgram = currentUser && (currentUser.role === 'admin' || currentUser.role === 'manager' || currentUser.role === 'trainer');
 
   const TableHeader = ({ children, className }: { children: React.ReactNode, className?: string }) => (
     <th className={`px-4 py-3 bg-slate-50 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider ${className}`}>
@@ -86,24 +86,29 @@ export const ProgramTable: React.FC<ProgramTableProps> = ({
                 onChange={e => setFilter({ ...filter, search: e.target.value })}
                 className="p-2 border rounded-md w-48 text-sm"
              />
-             <select
-                value={filter.trainerId}
-                onChange={e => setFilter({ ...filter, trainerId: e.target.value })}
-                className="p-2 border rounded-md text-sm"
-             >
-                {/* 관리자만 모든 강사 옵션 표시 */}
-                {currentUser?.role === 'admin' && <option value="">모든 강사</option>}
-                {trainers.filter(t => t.isActive).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-             </select>
-             <select
-                value={filter.branchId}
-                onChange={e => setFilter({ ...filter, branchId: e.target.value })}
-                className="p-2 border rounded-md text-sm"
-             >
-                {/* 관리자만 모든 지점 옵션 표시 */}
-                {currentUser?.role === 'admin' && <option value="">모든 지점</option>}
-                {allBranches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-             </select>
+             {/* 트레이너는 강사와 지점 필터를 사용할 수 없음 */}
+             {currentUser?.role !== 'trainer' && (
+                <select
+                   value={filter.trainerId}
+                   onChange={e => setFilter({ ...filter, trainerId: e.target.value })}
+                   className="p-2 border rounded-md text-sm"
+                >
+                   {/* 관리자와 매니저 모두 모든 강사 옵션 표시 */}
+                   {(currentUser?.role === 'admin' || currentUser?.role === 'manager') && <option value="">모든 강사</option>}
+                   {trainers.filter(t => t.isActive).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                </select>
+             )}
+             {currentUser?.role !== 'trainer' && (
+                <select
+                   value={filter.branchId}
+                   onChange={e => setFilter({ ...filter, branchId: e.target.value })}
+                   className="p-2 border rounded-md text-sm"
+                >
+                   {/* 관리자만 모든 지점 옵션 표시 */}
+                   {currentUser?.role === 'admin' && <option value="">모든 지점</option>}
+                   {allBranches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                </select>
+             )}
         </div>
       </div>
 

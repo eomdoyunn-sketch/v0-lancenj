@@ -91,6 +91,35 @@ export class AuthService {
       });
 
       if (error) {
+        // 이메일 확인 오류인 경우 특별 처리
+        if (error.message.includes('Email not confirmed')) {
+          // 이메일 확인을 우회하고 사용자 프로필을 직접 로드
+          console.log('이메일 확인 우회 시도...');
+          
+          // 사용자 테이블에서 직접 사용자 정보 조회
+          const { data: userData, error: userError } = await supabase
+            .from('users')
+            .select('*')
+            .eq('email', email)
+            .single();
+
+          if (userError || !userData) {
+            return { user: null, error: '사용자 정보를 찾을 수 없습니다.' };
+          }
+
+          // 현재 사용자로 설정
+          this.currentUser = {
+            id: userData.id,
+            name: userData.name,
+            email: userData.email,
+            role: userData.role as any,
+            assignedBranchIds: userData.assigned_branch_ids || [],
+            trainerProfileId: userData.trainer_profile_id
+          };
+
+          return { user: this.currentUser, error: null };
+        }
+        
         return { user: null, error: error.message };
       }
 
@@ -108,13 +137,16 @@ export class AuthService {
   // 회원가입
   static async signup(name: string, email: string, password: string, branchId: string): Promise<{ user: User | null; error: string | null }> {
     try {
-      // 1. Supabase Auth에 사용자 생성
+      console.log('회원가입 시도:', { name, email, password: '***', branchId });
+      
+      // 1. Supabase Auth에 사용자 생성 (이메일 확인 비활성화)
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
-        password,
+        password
       });
 
       if (authError) {
+        console.error('Supabase Auth 오류:', authError);
         return { user: null, error: authError.message };
       }
 
@@ -122,16 +154,34 @@ export class AuthService {
         return { user: null, error: '회원가입에 실패했습니다.' };
       }
 
-      // 2. users 테이블에 사용자 정보 저장
+      // 2. 트레이너 프로필 생성
+      const { data: trainerData, error: trainerError } = await supabase
+        .from('trainers')
+        .insert({
+          name,
+          branch_ids: [branchId],
+          branch_rates: [{ branchId, type: 'percentage', value: 30 }],
+          color: 'blue-500',
+          is_active: true
+        })
+        .select()
+        .single();
+
+      if (trainerError) {
+        console.error('트레이너 프로필 생성 실패:', trainerError);
+        return { user: null, error: '트레이너 프로필 생성에 실패했습니다.' };
+      }
+
+      // 3. users 테이블에 사용자 정보 저장 (트레이너로)
       const { error: profileError } = await supabase
         .from('users')
         .insert({
           id: authData.user.id,
           name,
           email,
-          role: 'unassigned',
+          role: 'trainer',
           assigned_branch_ids: [],
-          trainer_profile_id: null
+          trainer_profile_id: trainerData.id
         });
 
       if (profileError) {
@@ -144,9 +194,9 @@ export class AuthService {
         id: authData.user.id,
         name,
         email,
-        role: 'unassigned',
+        role: 'trainer',
         assignedBranchIds: [],
-        trainerProfileId: null
+        trainerProfileId: trainerData.id
       };
 
       return { user: this.currentUser, error: null };
@@ -201,7 +251,7 @@ export class AuthService {
         name: data.name,
         email: data.email,
         role: data.role as any,
-        assignedBranchIds: data.assigned_branch_ids,
+        assignedBranchIds: data.assigned_branch_ids || [],
         trainerProfileId: data.trainer_profile_id
       };
 

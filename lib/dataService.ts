@@ -122,6 +122,7 @@ export class DataManager {
         contact: member.contact,
         branchId: member.branch_id,
         referrerId: member.referrer_id,
+        assignedTrainerId: member.assigned_trainer_id,
         exerciseGoals: member.exercise_goals,
         motivation: member.motivation,
         medicalHistory: member.medical_history,
@@ -139,22 +140,32 @@ export class DataManager {
 
   static async createMember(memberData: Omit<Member, 'id'>): Promise<Member | null> {
     try {
+      console.log('=== DataService.createMember 시작 ===');
+      console.log('받은 memberData:', memberData);
+      console.log('assignedTrainerId 값:', memberData.assignedTrainerId);
+      console.log('assignedTrainerId 타입:', typeof memberData.assignedTrainerId);
+      
+      const insertData = {
+        name: memberData.name,
+        contact: memberData.contact,
+        branch_id: memberData.branchId,
+        referrer_id: memberData.referrerId,
+        assigned_trainer_id: memberData.assignedTrainerId,
+        exercise_goals: memberData.exerciseGoals,
+        motivation: memberData.motivation,
+        medical_history: memberData.medicalHistory,
+        exercise_experience: memberData.exerciseExperience,
+        preferred_time: memberData.preferredTime,
+        occupation: memberData.occupation,
+        memo: memberData.memo,
+        created_at: new Date().toISOString()
+      };
+      
+      console.log('Supabase에 전송할 데이터:', insertData);
+      
       const { data: newMember, error } = await supabase
         .from('members')
-        .insert({
-          name: memberData.name,
-          contact: memberData.contact,
-          branch_id: memberData.branchId,
-          referrer_id: memberData.referrerId,
-          exercise_goals: memberData.exerciseGoals,
-          motivation: memberData.motivation,
-          medical_history: memberData.medicalHistory,
-          exercise_experience: memberData.exerciseExperience,
-          preferred_time: memberData.preferredTime,
-          occupation: memberData.occupation,
-          memo: memberData.memo,
-          created_at: new Date().toISOString()
-        })
+        .insert(insertData)
         .select()
         .single();
 
@@ -169,6 +180,7 @@ export class DataManager {
         contact: newMember.contact,
         branchId: newMember.branch_id,
         referrerId: newMember.referrer_id,
+        assignedTrainerId: newMember.assigned_trainer_id,
         exerciseGoals: newMember.exercise_goals,
         motivation: newMember.motivation,
         medicalHistory: newMember.medical_history,
@@ -192,6 +204,7 @@ export class DataManager {
       if (updates.contact !== undefined) updateData.contact = updates.contact;
       if (updates.branchId !== undefined) updateData.branch_id = updates.branchId;
       if (updates.referrerId !== undefined) updateData.referrer_id = updates.referrerId;
+      if (updates.assignedTrainerId !== undefined) updateData.assigned_trainer_id = updates.assignedTrainerId;
       if (updates.exerciseGoals !== undefined) updateData.exercise_goals = updates.exerciseGoals;
       if (updates.motivation !== undefined) updateData.motivation = updates.motivation;
       if (updates.medicalHistory !== undefined) updateData.medical_history = updates.medicalHistory;
@@ -218,6 +231,7 @@ export class DataManager {
         contact: data.contact,
         branchId: data.branch_id,
         referrerId: data.referrer_id,
+        assignedTrainerId: data.assigned_trainer_id,
         exerciseGoals: data.exercise_goals,
         motivation: data.motivation,
         medicalHistory: data.medical_history,
@@ -474,6 +488,7 @@ export class DataManager {
 
   static async updateProgram(programId: string, updates: Partial<MemberProgram>): Promise<MemberProgram | null> {
     try {
+      console.log('DataManager.updateProgram 호출:', { programId, updates });
       const updateData: any = {};
       
       if (updates.memberIds !== undefined) updateData.member_ids = updates.memberIds;
@@ -486,13 +501,19 @@ export class DataManager {
       if (updates.unitPrice !== undefined) updateData.unit_price = updates.unitPrice;
       if (updates.completedSessions !== undefined) updateData.completed_sessions = updates.completedSessions;
       if (updates.status !== undefined) updateData.status = updates.status;
-      if (updates.assignedTrainerId !== undefined) updateData.assigned_trainer_id = updates.assignedTrainerId;
+      if (updates.assignedTrainerId !== undefined) {
+        // null 또는 undefined를 null로 변환하여 Supabase에서 처리할 수 있도록 함
+        updateData.assigned_trainer_id = updates.assignedTrainerId || null;
+      }
       if (updates.memo !== undefined) updateData.memo = updates.memo;
       if (updates.defaultSessionDuration !== undefined) updateData.default_session_duration = updates.defaultSessionDuration;
       if (updates.branchId !== undefined) updateData.branch_id = updates.branchId;
       if (updates.fixedTrainerFee !== undefined) updateData.fixed_trainer_fee = updates.fixedTrainerFee;
       if (updates.sessionFees !== undefined) updateData.session_fees = updates.sessionFees;
 
+      console.log('Supabase 업데이트 데이터:', updateData);
+
+      console.log('Supabase 업데이트 실행 중...');
       const { data, error } = await supabase
         .from('programs')
         .update(updateData)
@@ -500,8 +521,16 @@ export class DataManager {
         .select()
         .single();
 
+      console.log('Supabase 업데이트 응답:', { data, error });
+
       if (error) {
         console.error('프로그램 업데이트 실패:', error);
+        console.error('오류 상세:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        });
         return null;
       }
 

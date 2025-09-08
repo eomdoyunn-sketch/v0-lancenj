@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
-import { Session, Trainer, SessionStatus, MemberProgram, Member } from '../types';
+import { Session, Trainer, SessionStatus, MemberProgram, Member, User } from '../types';
 import { ChevronLeftIcon, ChevronRightIcon, UsersIcon } from './Icons';
 
 interface ScheduleCalendarProps {
   sessions: Session[];
+  allSessions: Session[];
   trainers: Trainer[];
   programs: MemberProgram[];
   members: Member[];
   onSessionEventClick: (session: Session) => void;
+  currentUser: User | null;
 }
 
 type CalendarView = 'month' | 'week' | 'day' | 'trainer';
@@ -16,14 +18,35 @@ const WEEK_DAYS = ['일', '월', '화', '수', '목', '금', '토'];
 const HOUR_START = 6; // Calendar starts at 6 AM
 const HOUR_END = 23;  // Calendar ends at 11 PM (to show 6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22)
 
-export const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({ sessions, trainers, programs, members, onSessionEventClick }) => {
+export const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({ sessions, allSessions, trainers, programs, members, onSessionEventClick, currentUser }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState<CalendarView>('week'); 
 
   const trainerMap = new Map(trainers.map(t => [t.id, t]));
   const programMap = new Map(programs.map(p => [p.id, p]));
   const memberMap = new Map(members.map(m => [m.id, m]));
-  const activeTrainers = trainers.filter(t => t.isActive).sort((a,b) => a.name.localeCompare(b.name));
+  
+  // App.tsx에서 이미 올바른 trainers 데이터가 전달되므로 추가 필터링 불필요
+  let filteredTrainers = trainers.filter(t => t.isActive);
+  let filteredSessions = sessions;
+  
+  console.log('전달받은 강사 목록:', trainers.map(t => `${t.name} (${t.branchIds.join(', ')})`));
+  console.log('현재 뷰:', view);
+  console.log('현재 사용자:', currentUser?.name, currentUser?.role);
+  
+  // 트레이너의 경우: 강사별 뷰에서만 지점 전체 강사 세션 표시
+  if (currentUser?.role === 'trainer' && currentUser.trainerProfileId && view === 'trainer') {
+    const trainerIds = filteredTrainers.map(t => t.id);
+    // allSessions에서 지점 전체 강사 세션만 필터링
+    filteredSessions = allSessions.filter(s => trainerIds.includes(s.trainerId));
+    console.log('강사별 뷰 - 지점 전체 세션:', filteredSessions.length, '강사 ID들:', trainerIds);
+  } else if (currentUser?.role === 'trainer') {
+    // 일별, 주별, 월별 뷰에서는 본인 세션만 (이미 App.tsx에서 필터링됨)
+    console.log('개인 뷰 - 본인 세션만:', filteredSessions.length);
+  }
+  
+  const activeTrainers = filteredTrainers.sort((a,b) => a.name.localeCompare(b.name));
+  console.log('ScheduleCalendar - activeTrainers:', activeTrainers.map(t => t.name));
 
   const getAttendedNames = (ids: string[]) => ids.map(id => memberMap.get(id)?.name || 'N/A');
 
@@ -47,6 +70,7 @@ export const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({ sessions, tr
 
   const goToToday = () => {
     setCurrentDate(new Date());
+    setView('day'); // 오늘 버튼 클릭 시 일별 뷰로 변경
   };
 
 
@@ -238,8 +262,8 @@ const renderDayView = () => {
 };
 
 const renderTrainerView = () => {
-    const dateStr = currentDate.toISOString().split('T')[0];
-    const daySessions = sessions.filter(s => s.date === dateStr);
+    // 강사별 뷰에서는 모든 세션을 보여줌 (날짜 필터링 제거)
+    const daySessions = filteredSessions;
     const totalHours = HOUR_END - HOUR_START;
     const timelineWidth = totalHours * 96; // 96px per hour
 

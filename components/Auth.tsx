@@ -15,6 +15,7 @@ export const Auth: React.FC<AuthProps> = ({ allBranches, onLogin }) => {
   const [success, setSuccess] = useState<string>('');
   const [loading, setLoading] = useState(false);
 
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError('');
@@ -51,9 +52,11 @@ export const Auth: React.FC<AuthProps> = ({ allBranches, onLogin }) => {
         const { user, error } = await AuthService.signup(name, email, password, branchId);
         if (error) {
             setError(error);
+        } else if (user) {
+            setSuccess('회원가입이 완료되었습니다. 자동으로 로그인됩니다.');
+            onLogin(user);
         } else {
-            setSuccess('회원가입이 완료되었습니다. 관리자 승인 후 로그인해주세요.');
-            setView('login');
+            setError('회원가입에 실패했습니다.');
         }
     } else if (view === 'forgot') {
         setError('비밀번호 재설정 기능은 현재 지원되지 않습니다. 관리자에게 문의하세요.');

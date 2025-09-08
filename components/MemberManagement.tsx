@@ -18,7 +18,7 @@ interface MemberManagementProps {
 
 export const MemberManagement: React.FC<MemberManagementProps> = ({ members, programs, sessions, onAddMember, onEditMember, onDeleteMember, onMemberClick, allBranches, filter, setFilter, currentUser }) => {
   
-  const canManageMembers = currentUser && (currentUser.role === 'admin' || currentUser.role === 'manager');
+  const canManageMembers = currentUser && (currentUser.role === 'admin' || currentUser.role === 'manager' || currentUser.role === 'trainer');
   const branchMap = new Map(allBranches.map(b => [b.id, b.name]));
 
   const getStatusChip = (status: MemberStatus) => {
@@ -144,14 +144,17 @@ export const MemberManagement: React.FC<MemberManagementProps> = ({ members, pro
           CSV 다운로드
         </button>
         <div className="flex items-center gap-4">
-          <select
-              value={filter.branchId}
-              onChange={e => setFilter({ ...filter, branchId: e.target.value })}
-              className="p-2 border rounded-md text-sm"
-          >
-              <option value="">모든 지점</option>
-              {allBranches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-          </select>
+          {/* 트레이너는 지점 선택을 할 수 없음 */}
+          {currentUser?.role !== 'trainer' && (
+            <select
+                value={filter.branchId}
+                onChange={e => setFilter({ ...filter, branchId: e.target.value })}
+                className="p-2 border rounded-md text-sm"
+            >
+                <option value="">모든 지점</option>
+                {allBranches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+            </select>
+          )}
         </div>
       </div>
       <div className="bg-white rounded-lg shadow-sm overflow-hidden">

@@ -12,6 +12,7 @@ interface ManagementViewProps {
     onAddUser: (context?: { role: UserRole; branchId: string; }) => void;
     onDeleteUser: (userId: string) => void;
     onUpdateManagerBranches: (userId: string, newBranches: string[]) => void;
+    onUpdateUserRole: (userId: string, newRole: UserRole, branchId?: string) => void;
     onAddPreset: () => void;
     onEditPreset: (preset: ProgramPreset) => void;
     onDeletePreset: (presetId: string) => void;
@@ -31,6 +32,7 @@ export const ManagementView: React.FC<ManagementViewProps> = ({
     onAddUser,
     onDeleteUser,
     onUpdateManagerBranches,
+    onUpdateUserRole,
     onAddPreset,
     onEditPreset,
     onDeletePreset,
@@ -198,6 +200,7 @@ export const ManagementView: React.FC<ManagementViewProps> = ({
                         onAddUser={onAddUser}
                         onDeleteUser={onDeleteUser}
                         onUpdateManagerBranches={onUpdateManagerBranches}
+                        onUpdateUserRole={onUpdateUserRole}
                     />
                   </div>
               )}

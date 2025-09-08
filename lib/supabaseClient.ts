@@ -65,6 +65,7 @@ export interface Database {
             contact: string
             branch_id: string | null
             referrer_id: string | null
+            assigned_trainer_id: string | null
             exercise_goals: string[] | null
             motivation: string | null
             medical_history: string | null
@@ -80,6 +81,7 @@ export interface Database {
             contact: string
             branch_id: string | null
             referrer_id: string | null
+            assigned_trainer_id?: string | null
             exercise_goals: string[] | null
             motivation: string | null
             medical_history: string | null
@@ -95,6 +97,7 @@ export interface Database {
             contact?: string
             branch_id?: string | null
             referrer_id?: string | null
+            assigned_trainer_id?: string | null
             exercise_goals?: string[] | null
             motivation?: string | null
             medical_history?: string | null
@@ -327,8 +330,10 @@ export interface Database {
 }
 
 
+// 강제로 올바른 URL 사용
 const supabaseUrl = 'https://eurpkgbmeziosjqkhmqv.supabase.co';
 const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV1cnBrZ2JtZXppb3NqcWtobXF2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTcxODMwODEsImV4cCI6MjA3Mjc1OTA4MX0.0TX158-7MPgkKfhEasIs39cyfWhVGTbsRnLjhEp_ORQ';
+
 
 if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error("Supabase URL and Anon Key are required.");

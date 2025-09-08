@@ -18,6 +18,7 @@ export interface Member {
   contact: string;
   branchId: string;
   referrerId?: string;
+  assignedTrainerId?: string; // 담당 강사 ID
   exerciseGoals?: ExerciseGoal[];
   motivation?: string;
   medicalHistory?: string;
