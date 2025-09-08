@@ -1323,7 +1323,7 @@ const App: React.FC = () => {
         return;
     }
 
-    // Case 3: Dragging a trainer onto a program row or dragging from program to trainer list
+    // Case 3: Dragging a trainer onto a program row
     const trainer = trainers.find(t => t.id === activeId);
     const program = programs.find(p => p.id === overId);
 
@@ -1338,13 +1338,18 @@ const App: React.FC = () => {
           setPrograms(programs.map(p => p.id === updatedProgram.id ? updatedProgram : p));
           await addAuditLog('수정', '프로그램', updatedProgram.programName, `${updatedProgram.programName}에 ${trainer.name} 강사를 배정했습니다.`, updatedProgram.branchId);
         }
-    } else if (program && (overId === 'active-droppable' || overId === 'inactive-droppable')) {
-        // 프로그램에서 강사를 제거 (미배정 상태로 변경)
-        if (program.assignedTrainerId) {
-            const updatedProgram = await DataManager.updateProgram(program.id, { assignedTrainerId: undefined });
+    }
+
+    // Case 4: Dragging a trainer from program to trainer list (unassign)
+    const draggedTrainer = trainers.find(t => t.id === activeId);
+    if (draggedTrainer && (overId === 'active-droppable' || overId === 'inactive-droppable')) {
+        // 해당 강사가 배정된 프로그램을 찾아서 해제
+        const assignedProgram = programs.find(p => p.assignedTrainerId === draggedTrainer.id);
+        if (assignedProgram) {
+            const updatedProgram = await DataManager.updateProgram(assignedProgram.id, { assignedTrainerId: undefined });
             if (updatedProgram) {
               setPrograms(programs.map(p => p.id === updatedProgram.id ? updatedProgram : p));
-              await addAuditLog('수정', '프로그램', updatedProgram.programName, `${updatedProgram.programName}에서 담당 강사를 해제했습니다.`, updatedProgram.branchId);
+              await addAuditLog('수정', '프로그램', updatedProgram.programName, `${updatedProgram.programName}에서 ${draggedTrainer.name} 강사를 해제했습니다.`, updatedProgram.branchId);
             }
         }
     }

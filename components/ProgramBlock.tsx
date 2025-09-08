@@ -19,7 +19,7 @@ const DraggableTrainer: React.FC<{ trainer: Trainer }> = ({ trainer }) => {
       style={style}
       {...listeners}
       {...attributes}
-      className={`flex items-center justify-center gap-2 cursor-grab active:cursor-grabbing ${isDragging ? 'opacity-50' : ''}`}
+      className={`flex items-center justify-center gap-2 cursor-move hover:bg-slate-100 rounded-md p-1 transition-colors ${isDragging ? 'opacity-50 bg-slate-200' : ''}`}
     >
       <div className={`w-6 h-6 rounded-full overflow-hidden ${trainer.color}`}>
         {trainer.photoUrl ? (
