@@ -1334,26 +1334,43 @@ const App: React.FC = () => {
         trainerRateForDb = 0.5;
     }
 
-    const fullSessionData = { 
+    if (sessionToEdit) {
+      // 기존 세션 수정 시
+      const fullSessionData = { 
         ...sessionData,
         trainerRate: trainerRateForDb, 
         trainerFee: trainerFee, 
-        status: sessionToEdit?.status || SessionStatus.Booked // 기존 상태 유지
-    };
-    
-    if (sessionToEdit) {
+        status: sessionToEdit.status // 기존 상태 유지
+      };
+      
       const updatedSession = await DataManager.updateSession(sessionToEdit.id, fullSessionData);
       if (updatedSession) {
         // 데이터 새로고침
         await fetchInitialData();
       }
     } else {
-      const newSession = await DataManager.createSession(fullSessionData);
-      if (newSession) {
-        // 데이터 새로고침
-        await fetchInitialData();
+      // 새 세션 생성 시 - 각 참석 회원별로 개별 세션 생성
+      const attendedMemberIds = sessionData.attendedMemberIds;
+      
+      for (const memberId of attendedMemberIds) {
+        const memberSessionData = {
+          ...sessionData,
+          attendedMemberIds: [memberId], // 각 회원별로 개별 세션
+          trainerRate: trainerRateForDb, 
+          trainerFee: trainerFee, 
+          status: SessionStatus.Booked
+        };
+        
+        const newSession = await DataManager.createSession(memberSessionData);
+        if (!newSession) {
+          console.error(`Failed to create session for member ${memberId}`);
+        }
       }
+      
+      // 데이터 새로고침
+      await fetchInitialData();
     }
+    
     handleCloseBookingModal();
     setSessionToEdit(null);
   };
@@ -1982,12 +1999,7 @@ const App: React.FC = () => {
               <label className="block text-sm font-medium text-slate-700">회원 선택</label>
               <div className="mt-2 space-y-2 max-h-32 overflow-y-auto border border-slate-300 rounded-md p-2">
                 {members.filter(member => {
-                  // 프로그램 수정 시에는 이미 배정된 회원만 표시
-                  if (programToEdit) {
-                    return programToEdit.memberIds.includes(member.id);
-                  }
-                  
-                  // 신규 등록 시
+                  // 프로그램 수정 시에도 모든 회원을 선택할 수 있도록 변경
                   // 트레이너의 경우 본인이 담당하는 회원만 표시
                   if (currentUser?.role === 'trainer' && currentUser.trainerProfileId) {
                     return member.assignedTrainerId === currentUser.trainerProfileId;
