@@ -7,6 +7,7 @@ interface ProgramTableProps {
   programs: MemberProgram[];
   members: Member[];
   sessions: Session[];
+  allSessions: Session[];
   trainers: Trainer[];
   allBranches: Branch[];
   onAddProgram: () => void;
@@ -27,6 +28,7 @@ export const ProgramTable: React.FC<ProgramTableProps> = ({
   programs,
   members,
   sessions,
+  allSessions,
   trainers,
   allBranches,
   onAddProgram,
@@ -136,6 +138,7 @@ export const ProgramTable: React.FC<ProgramTableProps> = ({
                 program={program}
                 members={members}
                 sessions={sessions}
+                allSessions={allSessions}
                 trainers={trainers}
                 onSessionClick={onSessionClick}
                 onEdit={onEditProgram}

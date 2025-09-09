@@ -95,7 +95,7 @@ const App: React.FC = () => {
   
   const [isLoading, setIsLoading] = useState(true);
   
-  const [programFilter, setProgramFilter] = useState({status: '유효' as ProgramStatus | '전체', search: '', trainerId: '', branchId: ''});
+  const [programFilter, setProgramFilter] = useState({status: '전체' as ProgramStatus | '전체', search: '', trainerId: '', branchId: ''});
   const [memberFilter, setMemberFilter] = useState({ branchId: '' });
   const [dashboardFilter, setDashboardFilter] = useState({ branchId: '' });
 
@@ -152,7 +152,7 @@ const App: React.FC = () => {
     setIsLoading(true);
     try {
         // Load all data from Supabase
-        const [allBranches, allMembers, allTrainers, allPrograms, allSessions, allPresets, allUsers, allLogs] = await Promise.all([
+        const [branchesData, allMembers, allTrainers, allPrograms, sessionsData, allPresets, allUsers, allLogs] = await Promise.all([
             DataManager.getBranches(),
             DataManager.getMembers(),
             DataManager.getTrainers(),
@@ -164,20 +164,21 @@ const App: React.FC = () => {
         ]);
 
         // 모든 지점 데이터를 상태로 설정
-        setAllBranches(allBranches);
-        setAllSessions(allSessions);
+        setAllBranches(branchesData);
+        setAllSessions(sessionsData);
+        
 
         if (currentUser.role === 'manager' && currentUser.assignedBranchIds && currentUser.assignedBranchIds.length > 0) {
             const managerBranches = currentUser.assignedBranchIds;
 
             // Only show branches that the manager is assigned to
-            const filteredBranches = allBranches.filter(b => managerBranches.includes(b.id));
+            const filteredBranches = branchesData.filter(b => managerBranches.includes(b.id));
             setBranches(filteredBranches);
 
             // Filter other data by manager's branches
             const filteredMembers = allMembers.filter(m => m.branchId && managerBranches.includes(m.branchId));
             const filteredPrograms = allPrograms.filter(p => managerBranches.includes(p.branchId));
-            const filteredSessions = allSessions.filter(s => {
+            const filteredSessions = sessionsData.filter(s => {
                 const program = allPrograms.find(p => p.id === s.programId);
                 return program && managerBranches.includes(program.branchId);
             });
@@ -196,7 +197,7 @@ const App: React.FC = () => {
                 const trainerBranches = trainerProfile.branchIds;
 
                 // Only show branches that the trainer is assigned to
-                const filteredBranches = allBranches.filter(b => trainerBranches.includes(b.id));
+                const filteredBranches = branchesData.filter(b => trainerBranches.includes(b.id));
                 setBranches(filteredBranches);
 
                 // Show all trainers in the same branch (for schedule view)
@@ -217,7 +218,7 @@ const App: React.FC = () => {
                 );
 
                 // Filter sessions: only own sessions (ScheduleCalendar will handle branch-wide sessions for trainer view)
-                const filteredSessions = allSessions.filter(s => s.trainerId === currentUser.trainerProfileId);
+                const filteredSessions = sessionsData.filter(s => s.trainerId === currentUser.trainerProfileId);
                 console.log('App.tsx - 본인 세션들:', filteredSessions.length);
 
                 // Filter presets by trainer's branches
@@ -239,10 +240,10 @@ const App: React.FC = () => {
             }
         } else {
             // Admin sees all data
-            setBranches(allBranches);
+            setBranches(branchesData);
             setMembers(allMembers);
             setPrograms(allPrograms);
-            setSessions(allSessions);
+            setSessions(sessionsData);
             setProgramPresets(allPresets);
             setAuditLogs(allLogs);
         }
@@ -294,12 +295,34 @@ const App: React.FC = () => {
     loadBranches();
     
     // Check if user is already logged in
-    const savedUser = AuthService.getCurrentUser();
-    if (savedUser) {
-      setCurrentUser(savedUser);
-    } else {
-      setIsLoading(false);
-    }
+    const checkAuth = async () => {
+      try {
+        // Supabase 세션 확인
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          // 세션이 있으면 사용자 프로필 로드
+          const { data: userData, error } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+          
+          if (userData && !error) {
+            setCurrentUser(userData);
+            AuthService.setCurrentUser(userData); // AuthService에도 설정
+          } else {
+            setIsLoading(false);
+          }
+        } else {
+          setIsLoading(false);
+        }
+      } catch (error) {
+        console.error('인증 확인 중 오류:', error);
+        setIsLoading(false);
+      }
+    };
+    
+    checkAuth();
   }, []);
 
 
@@ -1149,6 +1172,39 @@ const App: React.FC = () => {
     return updatedUser;
   };
 
+  // 특정 사용자들의 지점을 업데이트하는 함수
+  const handleUpdateUsersBranch = async (userNames: string[], branchId: string) => {
+    try {
+      const branch = branches.find(b => b.id === branchId);
+      if (!branch) {
+        alert('지점을 찾을 수 없습니다.');
+        return;
+      }
+
+      const usersToUpdate = users.filter(user => userNames.includes(user.name));
+      if (usersToUpdate.length === 0) {
+        alert('해당 이름의 사용자를 찾을 수 없습니다.');
+        return;
+      }
+
+      for (const user of usersToUpdate) {
+        const updates: Partial<User> = {
+          assignedBranchIds: [branchId]
+        };
+        
+        const updatedUser = await handleUpdateUserPermissions(user.id, updates);
+        if (updatedUser) {
+          await addAuditLog('수정', '사용자', user.name, `${user.name} 사용자를 ${branch.name} 지점으로 배정했습니다.`, branchId);
+        }
+      }
+
+      alert(`${userNames.join(', ')} 사용자들을 ${branch.name} 지점으로 배정했습니다.`);
+    } catch (error) {
+      console.error('사용자 지점 업데이트 중 오류:', error);
+      alert('사용자 지점 업데이트 중 오류가 발생했습니다.');
+    }
+  };
+
   const handleUpdateManagerBranches = async (userId: string, newBranches: string[]) => {
     const user = users.find(u => u.id === userId);
     if (!user) return;
@@ -1194,11 +1250,13 @@ const App: React.FC = () => {
         updates.trainerProfileId = existingTrainer.id;
       } else {
         // 새 트레이너 프로필 생성
+        const randomColor = availableColors[Math.floor(Math.random() * availableColors.length)].replace('bg-', '');
+        
         const newTrainer = await DataManager.createTrainer({
           name: user.name || 'Unknown',
           branchIds: [branchId],
-          branchRates: [{ branchId, type: 'percentage' as RateType, value: 30 }],
-          color: availableColors[Math.floor(Math.random() * availableColors.length)].replace('bg-', ''),
+          branchRates: { [branchId]: { type: 'percentage' as RateType, value: 0 } },
+          color: randomColor,
           isActive: true
         });
         
@@ -1286,12 +1344,14 @@ const App: React.FC = () => {
     if (sessionToEdit) {
       const updatedSession = await DataManager.updateSession(sessionToEdit.id, fullSessionData);
       if (updatedSession) {
-        setSessions(sessions.map(s => s.id === updatedSession.id ? updatedSession : s));
+        // 데이터 새로고침
+        await fetchInitialData();
       }
     } else {
       const newSession = await DataManager.createSession(fullSessionData);
       if (newSession) {
-        setSessions([...sessions, newSession]);
+        // 데이터 새로고침
+        await fetchInitialData();
       }
     }
     handleCloseBookingModal();
@@ -1309,8 +1369,10 @@ const App: React.FC = () => {
       };
       const updatedSession = await DataManager.updateSession(sessionToRevert.id, updatedSessionData);
       if (updatedSession) {
-        setSessions(sessions.map(s => s.id === updatedSession.id ? updatedSession : s));
         await addAuditLog('수정', '프로그램', `세션 ${sessionToRevert.sessionNumber}회차`, `'${sessionToRevert.date} ${sessionToRevert.startTime}' 수업 완료를 취소했습니다.`);
+        
+        // 데이터 새로고침
+        await fetchInitialData();
       }
     }
   };
@@ -1331,7 +1393,8 @@ const App: React.FC = () => {
       }
       
       if (updatedSession) {
-        setSessions(sessions.map(s => s.id === updatedSession.id ? updatedSession : s));
+        // 데이터 새로고침
+        await fetchInitialData();
         const session = sessions.find(s => s.id === sessionId);
         if (session) {
           await addAuditLog('수정', '프로그램', `세션 ${session.sessionNumber}회차`, `'${session.date} ${session.startTime}' 수업료를 ${newFee.toLocaleString()}원으로 수정했습니다.`);
@@ -1427,27 +1490,22 @@ const App: React.FC = () => {
       const wasAlreadyCompleted = sessionToComplete.status === SessionStatus.Completed;
       console.log('이미 완료된 세션인가?', wasAlreadyCompleted);
       
-      const updatedSessions = sessions.map(s => s.id === updatedSession.id ? updatedSession : s);
-      setSessions(updatedSessions);
       console.log('세션 상태 업데이트 완료');
+      console.log('업데이트된 세션:', updatedSession);
 
       if (!wasAlreadyCompleted) {
           console.log('프로그램 완료 세션 수 업데이트 시작');
-          const newCompletedCount = updatedSessions.filter(s => s.programId === program.id && s.status === SessionStatus.Completed).length;
+          const newCompletedCount = sessions.filter(s => s.programId === program.id && s.status === SessionStatus.Completed).length + 1;
           const programUpdates = {
               completedSessions: newCompletedCount,
               status: newCompletedCount >= program.totalSessions ? '만료' as ProgramStatus : program.status,
           };
           console.log('프로그램 업데이트 데이터:', programUpdates);
-          console.log('DataManager.updateProgram 호출 전');
           
           const updatedProgram = await DataManager.updateProgram(program.id, programUpdates);
           console.log('프로그램 업데이트 결과:', updatedProgram);
           
-          if (updatedProgram) {
-            setPrograms(programs.map(p => p.id === updatedProgram.id ? updatedProgram : p));
-            console.log('프로그램 상태 업데이트 완료');
-          } else {
+          if (!updatedProgram) {
             console.error('프로그램 업데이트 실패');
           }
       }
@@ -1456,6 +1514,11 @@ const App: React.FC = () => {
       console.log('감사 로그 추가 시작');
       await addAuditLog('수정', '프로그램', `세션 ${sessionToComplete.sessionNumber}회차`, `'${sessionToComplete.date} ${sessionToComplete.startTime}' 수업을 완료 처리했습니다.`);
       console.log('감사 로그 추가 완료');
+      
+      // 데이터 새로고침
+      console.log('데이터 새로고침 시작...');
+      await fetchInitialData();
+      console.log('데이터 새로고침 완료');
       
       alert('수업이 성공적으로 완료 처리되었습니다.');
       handleCloseCompletionModal();
@@ -1721,7 +1784,11 @@ const App: React.FC = () => {
     if (currentUser?.role === 'manager' && currentUser.assignedBranchIds) {
       return t.branchIds.some(branchId => currentUser.assignedBranchIds!.includes(branchId));
     }
-    // 관리자와 트레이너는 모든 강사 표시 (트레이너는 Sidebar에서 본인만 필터링)
+    // 트레이너의 경우 본인만 표시
+    if (currentUser?.role === 'trainer' && currentUser.trainerProfileId) {
+      return t.id === currentUser.trainerProfileId;
+    }
+    // 관리자는 모든 강사 표시
     return true;
   });
 
@@ -1776,12 +1843,12 @@ const App: React.FC = () => {
       <Header currentView={currentView} setCurrentView={setViewWithPermissions} currentUser={currentUser} onLogout={handleLogout} />
       <div className="flex flex-1 overflow-hidden">
         <main className="flex-1 flex overflow-hidden">
-          {currentView === 'programs' && <ProgramTable programs={filteredPrograms} members={members} sessions={sessions} trainers={filteredTrainersForDisplay} onAddProgram={() => handleOpenProgramModal(null)} onEditProgram={handleOpenProgramModal} onReRegisterProgram={(p) => handleOpenProgramModal({...p, id: ``, registrationType: '재등록', completedSessions: 0, status: '유효'})} onDeleteProgram={handleDeleteProgram} onSessionClick={handleSessionClick} filter={programFilter} setFilter={handleSetProgramFilter} allBranches={branches} onShowTooltip={(content, rect) => setTooltip({ content, rect })} onHideTooltip={() => setTooltip(null)} currentUser={currentUser} />}
+          {currentView === 'programs' && <ProgramTable programs={filteredPrograms} members={members} sessions={sessions} allSessions={allSessions} trainers={filteredTrainersForDisplay} onAddProgram={() => handleOpenProgramModal(null)} onEditProgram={handleOpenProgramModal} onReRegisterProgram={(p) => handleOpenProgramModal({...p, id: ``, registrationType: '재등록', completedSessions: 0, status: '유효'})} onDeleteProgram={handleDeleteProgram} onSessionClick={handleSessionClick} filter={programFilter} setFilter={handleSetProgramFilter} allBranches={branches} onShowTooltip={(content, rect) => setTooltip({ content, rect })} onHideTooltip={() => setTooltip(null)} currentUser={currentUser} />}
           {currentView === 'dashboard' && <Dashboard trainers={filteredTrainersForDisplay} sessions={sessions} allSessions={allSessions} programs={programs} members={members} startDate={filterStartDate} endDate={filterEndDate} setStartDate={setFilterStartDate} setEndDate={setFilterEndDate} onTrainerClick={(trainerId) => { const t = trainers.find(t=>t.id===trainerId); if(t) {setSelectedTrainerForDetail(t); setTrainerDetailModalOpen(true);}}} onSessionEventClick={handleCalendarSessionClick} allBranches={branches} filter={dashboardFilter} setFilter={setDashboardFilter} currentUser={currentUser} />}
           {/* FIX: Changed setFilter to setMemberFilter to pass the correct state updater function. */}
           {currentView === 'members' && <MemberManagement members={filteredMembers} programs={programs} sessions={sessions} onAddMember={() => handleOpenMemberModal(null)} onEditMember={handleOpenMemberModal} onDeleteMember={handleDeleteMember} onMemberClick={handleMemberClick} allBranches={branches} filter={memberFilter} setFilter={setMemberFilter} currentUser={currentUser} />}
           {currentView === 'logs' && <LogManagement logs={auditLogs} branches={branches} currentUser={currentUser} />}
-          {currentView === 'management' && <ManagementView currentUser={currentUser} users={users} trainers={trainers} allBranches={branches} presets={programPresets} onAddUser={(context) => handleOpenUserModal(null, context)} onDeleteUser={handleDeleteUser} onUpdateManagerBranches={handleUpdateManagerBranches} onUpdateUserRole={handleUpdateUserRole} onAddPreset={() => handleOpenPresetModal(null)} onEditPreset={handleOpenPresetModal} onDeletePreset={handleDeletePreset} onAddBranch={() => handleOpenBranchModal(null)} onEditBranch={handleOpenBranchModal} onDeleteBranch={handleDeleteBranch} />}
+          {currentView === 'management' && <ManagementView currentUser={currentUser} users={users} trainers={trainers} allBranches={branches} presets={programPresets} onAddUser={(context) => handleOpenUserModal(null, context)} onDeleteUser={handleDeleteUser} onUpdateManagerBranches={handleUpdateManagerBranches} onUpdateUserRole={handleUpdateUserRole} onUpdateUsersBranch={handleUpdateUsersBranch} onAddPreset={() => handleOpenPresetModal(null)} onEditPreset={handleOpenPresetModal} onDeletePreset={handleDeletePreset} onAddBranch={() => handleOpenBranchModal(null)} onEditBranch={handleOpenBranchModal} onDeleteBranch={handleDeleteBranch} />}
         </main>
         {currentView === 'programs' && <Sidebar trainers={filteredTrainersForDisplay} onAddTrainer={() => handleOpenTrainerModal(null)} onEditTrainer={handleOpenTrainerModal} onDeleteTrainer={handleDeleteTrainer} currentUser={currentUser} branches={branches} />}
       </div>
@@ -1807,6 +1874,7 @@ const App: React.FC = () => {
           members={members}
           programs={programs}
           sessions={sessions}
+          allSessions={allSessions}
           trainers={trainers}
           branches={branches}
           onShowTooltip={(content, rect) => setTooltip({ content, rect })}

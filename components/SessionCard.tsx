@@ -15,6 +15,7 @@ interface SessionTrackerProps {
 
 export const SessionTracker: React.FC<SessionTrackerProps> = ({ programId, totalSessions, sessions, trainers, members, onSessionClick, onShowTooltip, onHideTooltip }) => {
   
+  
   const sessionMap = new Map(sessions.map(s => [s.sessionNumber, s]));
   const trainerMap = new Map(trainers.map(t => [t.id, t]));
   const memberMap = new Map(members.map(m => [m.id, m]));

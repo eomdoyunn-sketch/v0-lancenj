@@ -30,6 +30,8 @@ export const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({ sessions, al
   let filteredTrainers = trainers.filter(t => t.isActive);
   let filteredSessions = sessions;
   
+  console.log('ScheduleCalendar - 전달받은 sessions:', sessions.length);
+  console.log('ScheduleCalendar - 전달받은 allSessions:', allSessions.length);
   console.log('전달받은 강사 목록:', trainers.map(t => `${t.name} (${t.branchIds.join(', ')})`));
   console.log('현재 뷰:', view);
   console.log('현재 사용자:', currentUser?.name, currentUser?.role);
@@ -156,7 +158,7 @@ export const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({ sessions, al
         {days.map((d, i) => {
             const isCurrentMonth = d.getMonth() === currentDate.getMonth();
             const dateStr = d.toISOString().split('T')[0];
-            const daySessions = sessions.filter(s => s.date === dateStr);
+            const daySessions = filteredSessions.filter(s => s.date === dateStr);
             return (
                 <div key={i} className={`p-2 border-r border-b min-h-[120px] ${isCurrentMonth ? 'bg-white' : 'bg-slate-50'}`}>
                     <span className={`text-sm ${isCurrentMonth ? 'font-medium' : 'text-slate-400'}`}>{d.getDate()}</span>
@@ -201,7 +203,7 @@ const renderWeekView = () => {
 
             {weekDays.map((day, i) => {
                 const dateStr = day.toISOString().split('T')[0];
-                const daySessions = sessions.filter(s => s.date === dateStr);
+                const daySessions = filteredSessions.filter(s => s.date === dateStr);
                 return (
                     <div key={i} className="relative border-r">
                         {Array.from({ length: HOUR_END - HOUR_START }).map((_, hourIdx) => (
@@ -245,7 +247,7 @@ const renderDayView = () => {
                 {Array.from({ length: HOUR_END - HOUR_START }).map((_, hourIdx) => (
                     <div key={hourIdx} className="h-16 border-t border-slate-100"></div>
                 ))}
-                {sessions.filter(s => s.date === dateStr).map(session => {
+                {filteredSessions.filter(s => s.date === dateStr).map(session => {
                     if (!session.startTime || !session.startTime.includes(':')) return null;
                     const [hour, minute] = session.startTime.split(':').map(Number);
                     const top = ((hour - HOUR_START) * 60 + minute) / 60 * 64; // 64px per hour

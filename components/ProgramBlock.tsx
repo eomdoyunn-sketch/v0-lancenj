@@ -40,6 +40,7 @@ interface ProgramRowProps {
   program: MemberProgram;
   members: Member[];
   sessions: Session[];
+  allSessions: Session[];
   trainers: Trainer[];
   onSessionClick: (programId: string, sessionNumber: number, session: Session | null) => void;
   onEdit: (program: MemberProgram) => void;
@@ -50,13 +51,13 @@ interface ProgramRowProps {
   currentUser: User | null;
 }
 
-export const ProgramRow: React.FC<ProgramRowProps> = ({ program, members, sessions, trainers, onSessionClick, onEdit, onReRegister, onDelete, onShowTooltip, onHideTooltip, currentUser }) => {
+export const ProgramRow: React.FC<ProgramRowProps> = ({ program, members, sessions, allSessions, trainers, onSessionClick, onEdit, onReRegister, onDelete, onShowTooltip, onHideTooltip, currentUser }) => {
   const { isOver, setNodeRef } = useDroppable({
     id: program.id,
   });
 
   const remainingSessions = program.totalSessions - program.completedSessions;
-  const programSessions = sessions.filter(s => s.programId === program.id);
+  const programSessions = allSessions.filter(s => s.programId === program.id);
   const assignedTrainer = trainers.find(t => t.id === program.assignedTrainerId);
   
   const programMembers = members.filter(m => program.memberIds.includes(m.id));

@@ -48,12 +48,17 @@ export class AuthService {
               role: role,
               assigned_branch_ids: [],
               trainer_profile_id: null
-            })
+            } as any)
             .select()
             .single();
 
           if (insertError) {
             console.error('기본 사용자 프로필 생성 실패:', insertError);
+            return;
+          }
+
+          if (!newUserData) {
+            console.error('사용자 데이터가 생성되지 않았습니다.');
             return;
           }
 
@@ -154,16 +159,30 @@ export class AuthService {
         return { user: null, error: '회원가입에 실패했습니다.' };
       }
 
-      // 2. 트레이너 프로필 생성
+      // 2. 트레이너 프로필 생성 (랜덤 색상 부여)
+      const availableColors = [
+        'red-500', 'red-600', 'orange-500', 'orange-600', 'amber-500', 'amber-600', 
+        'yellow-500', 'yellow-600', 'lime-500', 'lime-600', 'green-500', 'green-600', 
+        'emerald-500', 'emerald-600', 'teal-500', 'teal-600', 'cyan-500', 'cyan-600', 
+        'sky-500', 'sky-600', 'blue-500', 'blue-600', 'indigo-500', 'indigo-600', 
+        'violet-500', 'violet-600', 'purple-500', 'purple-600', 'fuchsia-500', 'fuchsia-600', 
+        'pink-500', 'pink-600', 'rose-500', 'rose-600', 'red-400', 'orange-400',
+        'yellow-400', 'green-400', 'blue-400', 'indigo-400', 'purple-400', 'pink-400',
+        'red-700', 'orange-700', 'yellow-700', 'green-700', 'blue-700', 'indigo-700',
+        'purple-700', 'pink-700'
+      ];
+      
+      const randomColor = availableColors[Math.floor(Math.random() * availableColors.length)];
+      
       const { data: trainerData, error: trainerError } = await supabase
         .from('trainers')
         .insert({
           name,
           branch_ids: [branchId],
-          branch_rates: [{ branchId, type: 'percentage', value: 30 }],
-          color: 'blue-500',
+          branch_rates: { [branchId]: { type: 'percentage', value: 0 } },
+          color: randomColor,
           is_active: true
-        })
+        } as any)
         .select()
         .single();
 
@@ -171,6 +190,12 @@ export class AuthService {
         console.error('트레이너 프로필 생성 실패:', trainerError);
         return { user: null, error: '트레이너 프로필 생성에 실패했습니다.' };
       }
+
+      if (!trainerData) {
+        console.error('트레이너 데이터가 null입니다');
+        return { user: null, error: '트레이너 프로필 생성에 실패했습니다.' };
+      }
+
 
       // 3. users 테이블에 사용자 정보 저장 (트레이너로)
       const { error: profileError } = await supabase
@@ -180,22 +205,22 @@ export class AuthService {
           name,
           email,
           role: 'trainer',
-          assigned_branch_ids: [],
+          assigned_branch_ids: [branchId], // 선택한 지점으로 배정
           trainer_profile_id: trainerData.id
-        });
+        } as any);
 
       if (profileError) {
         console.error('사용자 프로필 생성 실패:', profileError);
         return { user: null, error: '사용자 프로필 생성에 실패했습니다.' };
       }
 
-      // 3. 현재 사용자로 설정
+      // 4. 현재 사용자로 설정
       this.currentUser = {
         id: authData.user.id,
         name,
         email,
         role: 'trainer',
-        assignedBranchIds: [],
+        assignedBranchIds: [branchId], // 선택한 지점으로 배정
         trainerProfileId: trainerData.id
       };
 
@@ -208,6 +233,11 @@ export class AuthService {
   // 현재 사용자 가져오기
   static getCurrentUser(): User | null {
     return this.currentUser;
+  }
+
+  // 현재 사용자 설정 (세션 복원용)
+  static setCurrentUser(user: User): void {
+    this.currentUser = user;
   }
 
   // 로그아웃
@@ -299,12 +329,17 @@ export class AuthService {
           role,
           assigned_branch_ids: role === 'manager' && branchId ? [branchId] : [],
           trainer_profile_id: null
-        })
+        } as any)
         .select()
         .single();
 
       if (profileError) {
         console.error('사용자 프로필 생성 실패:', profileError);
+        return null;
+      }
+
+      if (!data) {
+        console.error('사용자 데이터가 생성되지 않았습니다.');
         return null;
       }
 

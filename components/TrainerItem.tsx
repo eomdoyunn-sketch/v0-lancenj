@@ -24,15 +24,20 @@ export const TrainerItem: React.FC<TrainerItemProps> = ({ trainer, onEdit, onDel
 
   const canManageTrainer = () => {
     if (!currentUser) return false;
+    
+    // Admin은 모든 강사 관리 가능
     if (currentUser.role === 'admin') return true;
+    
+    // Manager는 같은 지점의 강사 관리 가능
     if (currentUser.role === 'manager') {
-      // Manager can edit a trainer if they share at least one branch
       return trainer.branchIds.some(branchId => currentUser.assignedBranchIds?.includes(branchId));
     }
+    
+    // Trainer는 본인 프로필 관리 가능 (이름으로도 확인)
     if (currentUser.role === 'trainer') {
-      // Trainer can edit their own profile
-      return trainer.id === currentUser.trainerProfileId;
+      return trainer.id === currentUser.trainerProfileId || trainer.name === currentUser.name;
     }
+    
     return false;
   };
 
@@ -40,7 +45,12 @@ export const TrainerItem: React.FC<TrainerItemProps> = ({ trainer, onEdit, onDel
     <div
       ref={setNodeRef}
       style={style}
-      className={`group relative flex items-center p-3 rounded-lg gap-3 transition-shadow ${isDragging ? 'shadow-2xl bg-blue-50 z-10' : ''} ${trainer.isActive ? 'bg-white hover:bg-slate-50' : 'bg-slate-200 text-slate-500'}`}
+      className={`group relative flex items-center p-3 rounded-lg gap-3 transition-shadow ${isDragging ? 'shadow-2xl bg-blue-50 z-10' : ''} ${
+        trainer.isActive ? 'bg-white hover:bg-slate-50' : 'bg-slate-200 text-slate-500'
+      } ${
+        // 새로 가입한 강사(모든 지점의 요율이 0%인 경우)에게 하이라이트 효과
+        Object.values(trainer.branchRates).every(rate => rate.value === 0) && trainer.isActive ? 'ring-2 ring-blue-400 ring-opacity-50 animate-pulse' : ''
+      }`}
     >
       <div 
         {...listeners}
@@ -73,7 +83,14 @@ export const TrainerItem: React.FC<TrainerItemProps> = ({ trainer, onEdit, onDel
       <div className="absolute right-8 top-1/2 -translate-y-1/2 flex items-center gap-1">
         {/* 톱니 아이콘은 항상 보이게 (본인 정보 수정용) */}
         {canManageTrainer() && (
-          <button onClick={(e) => { e.stopPropagation(); onEdit(); }} className="p-1.5 text-slate-500 hover:text-blue-600 rounded-full hover:bg-slate-200 opacity-100">
+          <button 
+            onClick={(e) => { e.stopPropagation(); onEdit(); }} 
+            className={`p-1.5 text-slate-500 hover:text-blue-600 rounded-full hover:bg-slate-200 opacity-100 ${
+              // 새로 가입한 강사(모든 지점의 요율이 0%인 경우)에게 반짝거림 효과
+              Object.values(trainer.branchRates).every(rate => rate.value === 0) && trainer.isActive ? 'animate-pulse bg-blue-100' : ''
+            }`}
+            title={Object.values(trainer.branchRates).every(rate => rate.value === 0) ? '설정을 완료해주세요!' : '강사 정보 수정'}
+          >
             <SettingsIcon className="w-4 h-4"/>
           </button>
         )}

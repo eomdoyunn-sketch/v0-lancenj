@@ -13,6 +13,7 @@ interface ManagementViewProps {
     onDeleteUser: (userId: string) => void;
     onUpdateManagerBranches: (userId: string, newBranches: string[]) => void;
     onUpdateUserRole: (userId: string, newRole: UserRole, branchId?: string) => void;
+    onUpdateUsersBranch: (userNames: string[], branchId: string) => void;
     onAddPreset: () => void;
     onEditPreset: (preset: ProgramPreset) => void;
     onDeletePreset: (presetId: string) => void;
@@ -33,6 +34,7 @@ export const ManagementView: React.FC<ManagementViewProps> = ({
     onDeleteUser,
     onUpdateManagerBranches,
     onUpdateUserRole,
+    onUpdateUsersBranch,
     onAddPreset,
     onEditPreset,
     onDeletePreset,
@@ -193,6 +195,65 @@ export const ManagementView: React.FC<ManagementViewProps> = ({
               {activeTab === 'presets' && renderPresets()}
               {activeTab === 'permissions' && currentUser?.role === 'admin' && (
                   <div className="mt-6">
+                    {/* 특정 사용자 지점 배정 버튼 */}
+                    <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <h3 className="text-lg font-semibold text-blue-800 mb-2">사용자 지점 배정</h3>
+                        <p className="text-blue-600 text-sm mb-4">특정 사용자들을 선택한 지점으로 배정합니다.</p>
+                        <div className="flex flex-wrap gap-2">
+                            {allBranches.map(branch => (
+                                <button
+                                    key={branch.id}
+                                    onClick={() => {
+                                        if (window.confirm(`박용성, 최범진 사용자를 ${branch.name} 지점으로 배정하시겠습니까?`)) {
+                                            onUpdateUsersBranch(['박용성', '최범진'], branch.id);
+                                        }
+                                    }}
+                                    className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors"
+                                >
+                                    박용성, 최범진 → {branch.name}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                    
+                    {/* 강사 요율 수정 */}
+                    <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+                        <h3 className="text-lg font-semibold text-green-800 mb-2">강사 요율 수정</h3>
+                        <p className="text-green-600 text-sm mb-4">기존 강사들의 요율을 0%로 초기화합니다.</p>
+                        <div className="flex flex-wrap gap-2">
+                            {trainers.map(trainer => (
+                                <button
+                                    key={trainer.id}
+                                    onClick={() => {
+                                        if (window.confirm(`${trainer.name} 강사의 모든 지점 요율을 0%로 변경하시겠습니까?`)) {
+                                            // 강사 요율을 0%로 업데이트
+                                            const updatedRates: { [branchId: string]: { type: 'percentage', value: 0 } } = {};
+                                            trainer.branchIds.forEach(branchId => {
+                                                updatedRates[branchId] = { type: 'percentage', value: 0 };
+                                            });
+                                            
+                                            // DataManager를 통해 업데이트
+                                            import('../lib/dataService').then(({ DataManager }) => {
+                                                DataManager.updateTrainer(trainer.id, { branchRates: updatedRates })
+                                                    .then(() => {
+                                                        alert(`${trainer.name} 강사의 요율이 0%로 변경되었습니다.`);
+                                                        window.location.reload(); // 페이지 새로고침
+                                                    })
+                                                    .catch(error => {
+                                                        console.error('강사 요율 업데이트 실패:', error);
+                                                        alert('강사 요율 업데이트에 실패했습니다.');
+                                                    });
+                                            });
+                                        }
+                                    }}
+                                    className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 transition-colors"
+                                >
+                                    {trainer.name} → 0%
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                    
                     <PermissionsManagement 
                         users={users}
                         trainers={trainers}

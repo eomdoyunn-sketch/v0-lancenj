@@ -22,6 +22,7 @@ interface MemberDetailModalProps {
     members: Member[];
     programs: MemberProgram[];
     sessions: Session[];
+    allSessions: Session[];
     trainers: Trainer[];
     branches: Branch[];
     onShowTooltip: (content: React.ReactNode, rect: DOMRect) => void;
@@ -30,7 +31,7 @@ interface MemberDetailModalProps {
 
 const historyTypes: HistoryItem['type'][] = ['프로그램 등록', '수업 예약', '수업 완료'];
 
-export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({ isOpen, onClose, member, history, members, programs, sessions, trainers, branches, onShowTooltip, onHideTooltip }) => {
+export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({ isOpen, onClose, member, history, members, programs, sessions, allSessions, trainers, branches, onShowTooltip, onHideTooltip }) => {
     const [typeFilter, setTypeFilter] = useState<HistoryItem['type'] | '전체'>('전체');
     const [searchFilter, setSearchFilter] = useState('');
     const [showCopyToast, setShowCopyToast] = useState(false);
@@ -202,7 +203,7 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({ isOpen, on
                   <h3 className="text-base font-bold text-slate-800 mb-3">프로그램별 세션 이력</h3>
                   <div className="max-h-[40vh] overflow-y-auto space-y-4 pr-2">
                     {memberPrograms.map(program => {
-                        const programSessions = sessions.filter(s => s.programId === program.id);
+                        const programSessions = allSessions.filter(s => s.programId === program.id);
                         
                         const getStatusChip = (status: string) => {
                             switch (status) {

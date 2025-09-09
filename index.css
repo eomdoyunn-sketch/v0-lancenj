@@ -1,1 +1,17 @@
 /* placeholder to avoid 404 */
+
+/* 새 강사 설정 유도 애니메이션 */
+@keyframes setup-pulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 0 0 8px rgba(59, 130, 246, 0);
+  }
+}
+
+.setup-pulse {
+  animation: setup-pulse 2s infinite;
+}
