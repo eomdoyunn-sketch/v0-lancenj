@@ -105,6 +105,49 @@ export const Dashboard: React.FC<DashboardProps> = ({
     setStartDate(toYYYYMMDD(start));
     setEndDate(toYYYYMMDD(end));
   };
+
+  const setAllTime = () => {
+    // 실제 데이터가 있는 범위를 동적으로 계산
+    const allSessionDates = sessionsForBranch.map(s => new Date(`${s.date}T00:00:00`));
+    
+    if (allSessionDates.length === 0) {
+      // 데이터가 없으면 현재 년도로 설정
+      const today = new Date();
+      const start = new Date(today.getFullYear(), 0, 1);
+      const end = new Date(today.getFullYear(), 11, 31);
+      setStartDate(toYYYYMMDD(start));
+      setEndDate(toYYYYMMDD(end));
+    } else {
+      // 가장 이른 날짜와 가장 늦은 날짜 찾기
+      const minDate = new Date(Math.min(...allSessionDates.map(d => d.getTime())));
+      const maxDate = new Date(Math.max(...allSessionDates.map(d => d.getTime())));
+      
+      // 월 단위로 정리 (각 월의 1일과 마지막 날로 설정)
+      const start = new Date(minDate.getFullYear(), minDate.getMonth(), 1);
+      const end = new Date(maxDate.getFullYear(), maxDate.getMonth() + 1, 0);
+      
+      setStartDate(toYYYYMMDD(start));
+      setEndDate(toYYYYMMDD(end));
+    }
+  };
+
+  // 전체 기간이 선택되었는지 확인하는 함수
+  const isAllTimeSelected = () => {
+    if (sessionsForBranch.length === 0) return false;
+    
+    const allSessionDates = sessionsForBranch.map(s => new Date(`${s.date}T00:00:00`));
+    const minDate = new Date(Math.min(...allSessionDates.map(d => d.getTime())));
+    const maxDate = new Date(Math.max(...allSessionDates.map(d => d.getTime())));
+    
+    const dataStart = new Date(minDate.getFullYear(), minDate.getMonth(), 1);
+    const dataEnd = new Date(maxDate.getFullYear(), maxDate.getMonth() + 1, 0);
+    
+    const currentStart = new Date(`${startDate}T00:00:00`);
+    const currentEnd = new Date(`${endDate}T23:59:59`);
+    
+    return currentStart.getTime() === dataStart.getTime() && 
+           currentEnd.getTime() === dataEnd.getTime();
+  };
   
   // The date string is already in YYYY-MM-DD format, so no conversion is needed for display.
   const formatDate = (dateStr: string) => {
@@ -143,6 +186,16 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="p-2 border rounded-md shadow-sm text-sm"/>
                 <span>~</span>
                 <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="p-2 border rounded-md shadow-sm text-sm"/>
+                <button 
+                    onClick={setAllTime} 
+                    className={`px-3 py-2 rounded-md shadow-sm text-sm font-medium border ${
+                        isAllTimeSelected() 
+                            ? 'bg-blue-500 text-white border-blue-500' 
+                            : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
+                    }`}
+                >
+                    전체
+                </button>
                 <button onClick={setThisMonth} className="px-3 py-2 bg-white text-slate-700 rounded-md shadow-sm text-sm font-medium hover:bg-slate-100 border">이번 달</button>
                 <button onClick={setLastMonth} className="px-3 py-2 bg-white text-slate-700 rounded-md shadow-sm text-sm font-medium hover:bg-slate-100 border">지난 달</button>
             </div>
