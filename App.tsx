@@ -128,6 +128,7 @@ const App: React.FC = () => {
   
   const [isTrainerDetailModalOpen, setTrainerDetailModalOpen] = useState(false);
   const [selectedTrainerForDetail, setSelectedTrainerForDetail] = useState<Trainer | null>(null);
+  const [selectedTrainerSessions, setSelectedTrainerSessions] = useState<Session[]>([]);
 
   const [isMemberDetailModalOpen, setMemberDetailModalOpen] = useState(false);
   const [selectedMemberForDetail, setSelectedMemberForDetail] = useState<Member | null>(null);
@@ -166,6 +167,10 @@ const App: React.FC = () => {
         // 모든 지점 데이터를 상태로 설정
         setAllBranches(branchesData);
         setAllSessions(sessionsData);
+        
+        // 디버깅을 위해 전역 변수로 노출
+        (window as any).sessions = sessionsData;
+        (window as any).allSessions = sessionsData;
         
 
         if (currentUser.role === 'manager' && currentUser.assignedBranchIds && currentUser.assignedBranchIds.length > 0) {
@@ -282,47 +287,57 @@ const App: React.FC = () => {
     AuthService.initialize();
     
     // Load branches data even before login (needed for signup form)
-  const loadBranches = async () => {
-    try {
-      const allBranchesData = await DataManager.getBranches();
-      setAllBranches(allBranchesData);
-      setBranches(allBranchesData);
-    } catch (error) {
-      console.error('지점 데이터 로딩 실패:', error);
-    }
-  };
-    
-    loadBranches();
-    
-    // Check if user is already logged in
-    const checkAuth = async () => {
+    const loadBranches = async () => {
       try {
-        // Supabase 세션 확인
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
-          // 세션이 있으면 사용자 프로필 로드
-          const { data: userData, error } = await supabase
-            .from('users')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
-          
-          if (userData && !error) {
-            setCurrentUser(userData);
-            AuthService.setCurrentUser(userData); // AuthService에도 설정
-          } else {
-            setIsLoading(false);
-          }
-        } else {
-          setIsLoading(false);
-        }
+        console.log('지점 데이터 로딩 시작...');
+        const allBranchesData = await DataManager.getBranches();
+        console.log('지점 데이터 로딩 성공:', allBranchesData);
+        setAllBranches(allBranchesData);
+        setBranches(allBranchesData);
+        console.log('지점 데이터 상태 설정 완료');
       } catch (error) {
-        console.error('인증 확인 중 오류:', error);
+        console.error('지점 데이터 로딩 실패:', error);
+        // 오류 발생 시 기본 지점 데이터 사용
+        const fallbackBranches = [
+          { id: 'branch-1', name: '강남점', created_at: new Date().toISOString() },
+          { id: 'branch-2', name: '홍대점', created_at: new Date().toISOString() },
+          { id: 'branch-3', name: '건대점', created_at: new Date().toISOString() }
+        ];
+        console.log('기본 지점 데이터 사용:', fallbackBranches);
+        setAllBranches(fallbackBranches);
+        setBranches(fallbackBranches);
+      }
+    };
+    
+    // AuthService의 세션 상태 변화 콜백 설정
+    AuthService.setAuthStateChangeCallback((user) => {
+      console.log('Auth state changed in App:', user);
+      setCurrentUser(user);
+    });
+    
+    // 초기화 완료
+    const initializeApp = async () => {
+      try {
+        console.log('앱 초기화 시작...');
+        await loadBranches();
+        console.log('지점 데이터 로딩 완료');
+        
+        // 초기 사용자 상태 확인
+        const initialUser = AuthService.getCurrentUser();
+        console.log('초기 사용자:', initialUser);
+        if (initialUser) {
+          setCurrentUser(initialUser);
+        }
+        console.log('앱 초기화 완료');
+      } catch (error) {
+        console.error('앱 초기화 실패:', error);
+      } finally {
+        console.log('로딩 상태 해제');
         setIsLoading(false);
       }
     };
     
-    checkAuth();
+    initializeApp();
   }, []);
 
 
@@ -1861,7 +1876,16 @@ const App: React.FC = () => {
       <div className="flex flex-1 overflow-hidden">
         <main className="flex-1 flex overflow-hidden">
           {currentView === 'programs' && <ProgramTable programs={filteredPrograms} members={members} sessions={sessions} allSessions={allSessions} trainers={filteredTrainersForDisplay} onAddProgram={() => handleOpenProgramModal(null)} onEditProgram={handleOpenProgramModal} onReRegisterProgram={(p) => handleOpenProgramModal({...p, id: ``, registrationType: '재등록', completedSessions: 0, status: '유효'})} onDeleteProgram={handleDeleteProgram} onSessionClick={handleSessionClick} filter={programFilter} setFilter={handleSetProgramFilter} allBranches={branches} onShowTooltip={(content, rect) => setTooltip({ content, rect })} onHideTooltip={() => setTooltip(null)} currentUser={currentUser} />}
-          {currentView === 'dashboard' && <Dashboard trainers={filteredTrainersForDisplay} sessions={sessions} allSessions={allSessions} programs={programs} members={members} startDate={filterStartDate} endDate={filterEndDate} setStartDate={setFilterStartDate} setEndDate={setFilterEndDate} onTrainerClick={(trainerId) => { const t = trainers.find(t=>t.id===trainerId); if(t) {setSelectedTrainerForDetail(t); setTrainerDetailModalOpen(true);}}} onSessionEventClick={handleCalendarSessionClick} allBranches={branches} filter={dashboardFilter} setFilter={setDashboardFilter} currentUser={currentUser} />}
+          {currentView === 'dashboard' && <Dashboard trainers={filteredTrainersForDisplay} sessions={sessions} allSessions={allSessions} programs={programs} members={members} startDate={filterStartDate} endDate={filterEndDate} setStartDate={setFilterStartDate} setEndDate={setFilterEndDate} onTrainerClick={(trainerId) => { 
+            const t = trainers.find(t=>t.id===trainerId); 
+            if(t) {
+              // 해당 강사의 모든 완료된 세션을 전달 (모달에서 독립적으로 필터링)
+              const trainerSessions = sessions.filter(s => s.trainerId === trainerId && s.status === 'completed');
+              setSelectedTrainerSessions(trainerSessions);
+              setSelectedTrainerForDetail(t); 
+              setTrainerDetailModalOpen(true);
+            }
+          }} onSessionEventClick={handleCalendarSessionClick} allBranches={branches} filter={dashboardFilter} setFilter={setDashboardFilter} currentUser={currentUser} />}
           {/* FIX: Changed setFilter to setMemberFilter to pass the correct state updater function. */}
           {currentView === 'members' && <MemberManagement members={filteredMembers} programs={programs} sessions={sessions} onAddMember={() => handleOpenMemberModal(null)} onEditMember={handleOpenMemberModal} onDeleteMember={handleDeleteMember} onMemberClick={handleMemberClick} allBranches={branches} filter={memberFilter} setFilter={setMemberFilter} currentUser={currentUser} />}
           {currentView === 'logs' && <LogManagement logs={auditLogs} branches={branches} currentUser={currentUser} />}
@@ -1875,7 +1899,7 @@ const App: React.FC = () => {
           isOpen={isTrainerDetailModalOpen}
           onClose={() => setTrainerDetailModalOpen(false)}
           trainer={selectedTrainerForDetail}
-          sessions={sessions.filter(s => s.trainerId === selectedTrainerForDetail?.id && s.status === 'completed')}
+          sessions={selectedTrainerSessions}
           programs={programs}
           members={members}
           startDate={filterStartDate}

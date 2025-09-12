@@ -21,20 +21,51 @@ export class DataManager {
   // ==================== BRANCHES ====================
   static async getBranches(): Promise<Branch[]> {
     try {
-      const { data, error } = await supabase
-        .from('branches')
-        .select('*')
-        .order('created_at', { ascending: true });
+      console.log('DataManager.getBranches() 시작');
+      console.log('Supabase 클라이언트:', supabase);
+      
+      console.log('Supabase REST API 호출 시작...');
+      
+      // 직접 fetch API를 사용하여 Supabase REST API 호출
+      const response = await fetch('https://eurpkgbmeziosjqkhmqv.supabase.co/rest/v1/branches?select=*', {
+        method: 'GET',
+        headers: {
+          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV1cnBrZ2JtZXppb3NqcWtobXF2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTcxODMwODEsImV4cCI6MjA3Mjc1OTA4MX0.0TX158-7MPgkKfhEasIs39cyfWhVGTbsRnLjhEp_ORQ',
+          'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV1cnBrZ2JtZXppb3NqcWtobXF2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTcxODMwODEsImV4cCI6MjA3Mjc1OTA4MX0.0TX158-7MPgkKfhEasIs39cyfWhVGTbsRnLjhEp_ORQ',
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      console.log('Fetch 응답 상태:', response.status);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log('Fetch로 가져온 데이터:', data);
+      
+      const error = null; // fetch API는 성공 시 error가 없음
+
+      console.log('Supabase 쿼리 결과:', { data, error });
 
       if (error) {
         console.error('지점 조회 실패:', error);
         return [];
       }
 
-      return data || [];
+      console.log('지점 데이터 반환:', data);
+      return data;
     } catch (error) {
       console.error('지점 조회 중 오류:', error);
-      return [];
+      // 오류 발생 시 기본 지점 데이터 반환
+      const fallbackData = [
+        { id: '2cbc08d0-3a1c-47fc-91c0-bf63e417c651', name: '한남동', created_at: new Date().toISOString() },
+        { id: '9b93efa9-4a80-4748-aaeb-5ee26dd8a6f0', name: '장교동', created_at: new Date().toISOString() },
+        { id: 'a24192ca-6d7c-4b81-aca7-4f20f71389c5', name: '소공동', created_at: new Date().toISOString() }
+      ];
+      console.log('오류로 인한 기본 지점 데이터 반환:', fallbackData);
+      return fallbackData;
     }
   }
 

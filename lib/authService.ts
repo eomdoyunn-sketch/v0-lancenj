@@ -3,35 +3,121 @@ import { User, UserRole } from '../types';
 
 export class AuthService {
   private static currentUser: User | null = null;
+  private static onAuthStateChangeCallback: ((user: User | null) => void) | null = null;
 
   // Initialize - Supabase는 자동으로 초기화됨
   static initialize() {
     // Supabase 세션 복원
     this.restoreSession();
+    
+    // 세션 상태 변화 감지
+    this.setupAuthStateListener();
+  }
+
+  // 세션 상태 변화 리스너 설정
+  private static setupAuthStateListener() {
+    supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state changed:', event, session?.user?.id);
+      
+      if (event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED') {
+        // 로그아웃되거나 토큰이 갱신된 경우
+        if (event === 'SIGNED_OUT') {
+          this.currentUser = null;
+          if (this.onAuthStateChangeCallback) {
+            this.onAuthStateChangeCallback(null);
+          }
+        } else if (event === 'TOKEN_REFRESHED' && session?.user) {
+          // 토큰 갱신 시 사용자 정보 다시 로드
+          await this.loadUserProfile(session.user.id, session.user.email);
+          if (this.onAuthStateChangeCallback && this.currentUser) {
+            this.onAuthStateChangeCallback(this.currentUser);
+          }
+        }
+      } else if (event === 'SIGNED_IN' && session?.user) {
+        // 로그인된 경우
+        await this.loadUserProfile(session.user.id, session.user.email);
+        if (this.onAuthStateChangeCallback && this.currentUser) {
+          this.onAuthStateChangeCallback(this.currentUser);
+        }
+      }
+    });
+
+    // 주기적으로 세션 유효성 검사 (5분마다)
+    setInterval(async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error || !session?.user) {
+          // 세션이 유효하지 않으면 자동 로그아웃
+          if (this.currentUser) {
+            console.log('세션이 만료되어 자동 로그아웃합니다.');
+            this.currentUser = null;
+            if (this.onAuthStateChangeCallback) {
+              this.onAuthStateChangeCallback(null);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('세션 유효성 검사 중 오류:', error);
+      }
+    }, 5 * 60 * 1000); // 5분
+  }
+
+  // 인증 상태 변화 콜백 설정
+  static setAuthStateChangeCallback(callback: (user: User | null) => void) {
+    this.onAuthStateChangeCallback = callback;
   }
 
   // 세션 복원
   private static async restoreSession() {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session }, error } = await supabase.auth.getSession();
+      
+      if (error) {
+        console.error('세션 조회 실패:', error);
+        this.currentUser = null;
+        return;
+      }
+      
       if (session?.user) {
+        // 세션이 유효한 경우에만 사용자 프로필 로드
         await this.loadUserProfile(session.user.id, session.user.email);
+      } else {
+        // 세션이 없는 경우 사용자 정보 초기화
+        this.currentUser = null;
+        console.log('유효한 세션이 없습니다. 사용자 정보를 초기화합니다.');
       }
     } catch (error) {
       console.error('세션 복원 실패:', error);
+      this.currentUser = null;
     }
   }
 
   // 사용자 프로필 로드
   private static async loadUserProfile(userId: string, userEmail?: string) {
     try {
-      const { data, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', userId)
-        .single();
+      console.log('사용자 프로필 로드 시작:', { userId, userEmail });
+      
+      // 직접 fetch API를 사용하여 사용자 정보 조회
+      const response = await fetch(`https://eurpkgbmeziosjqkhmqv.supabase.co/rest/v1/users?id=eq.${userId}&select=*`, {
+        method: 'GET',
+        headers: {
+          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV1cnBrZ2JtZXppb3NqcWtobXF2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTcxODMwODEsImV4cCI6MjA3Mjc1OTA4MX0.0TX158-7MPgkKfhEasIs39cyfWhVGTbsRnLjhEp_ORQ',
+          'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV1cnBrZ2JtZXppb3NqcWtobXF2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTcxODMwODEsImV4cCI6MjA3Mjc1OTA4MX0.0TX158-7MPgkKfhEasIs39cyfWhVGTbsRnLjhEp_ORQ',
+          'Content-Type': 'application/json'
+        }
+      });
 
-      if (error || !data) {
+      console.log('사용자 프로필 조회 응답 상태:', response.status);
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('사용자 프로필 조회 결과:', data);
+
+      if (!data || data.length === 0) {
         console.log('사용자 프로필이 없음. 기본 프로필 생성 중...');
         
         // 사용자 프로필이 없으면 기본 프로필 생성
@@ -39,49 +125,62 @@ export class AuthService {
           // lancenj@lancenj.com만 admin, 나머지는 unassigned로 설정
           const role = userEmail === 'lancenj@lancenj.com' ? 'admin' : 'unassigned';
           
-          const { data: newUserData, error: insertError } = await supabase
-            .from('users')
-            .insert({
+          const createResponse = await fetch('https://eurpkgbmeziosjqkhmqv.supabase.co/rest/v1/users', {
+            method: 'POST',
+            headers: {
+              'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV1cnBrZ2JtZXppb3NqcWtobXF2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTcxODMwODEsImV4cCI6MjA3Mjc1OTA4MX0.0TX158-7MPgkKfhEasIs39cyfWhVGTbsRnLjhEp_ORQ',
+              'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV1cnBrZ2JtZXppb3NqcWtobXF2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTcxODMwODEsImV4cCI6MjA3Mjc1OTA4MX0.0TX158-7MPgkKfhEasIs39cyfWhVGTbsRnLjhEp_ORQ',
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
               id: userId,
               name: userEmail.split('@')[0], // 이메일의 @ 앞부분을 이름으로 사용
               email: userEmail,
               role: role,
               assigned_branch_ids: [],
               trainer_profile_id: null
-            } as any)
-            .select()
-            .single();
+            })
+          });
 
-          if (insertError) {
-            console.error('기본 사용자 프로필 생성 실패:', insertError);
+          console.log('사용자 프로필 생성 응답 상태:', createResponse.status);
+
+          if (!createResponse.ok) {
+            const errorData = await createResponse.json();
+            console.error('기본 사용자 프로필 생성 실패:', errorData);
+            this.currentUser = null;
             return;
           }
 
-          if (!newUserData) {
-            console.error('사용자 데이터가 생성되지 않았습니다.');
-            return;
-          }
+          const newUserData = await createResponse.json();
+          console.log('새 사용자 프로필 생성됨:', newUserData);
 
           this.currentUser = {
-            id: newUserData.id,
-            name: newUserData.name,
-            email: newUserData.email,
-            role: newUserData.role as any,
-            assignedBranchIds: newUserData.assigned_branch_ids,
-            trainerProfileId: newUserData.trainer_profile_id
-          };
+            id: newUserData[0].id,
+            name: newUserData[0].name,
+            email: newUserData[0].email,
+            role: newUserData[0].role as UserRole,
+            assignedBranchIds: newUserData[0].assigned_branch_ids || [],
+            trainerProfileId: newUserData[0].trainer_profile_id
+          } as User;
+        } else {
+          // 이메일이 없는 경우 사용자 정보 초기화
+          this.currentUser = null;
         }
         return;
       }
 
+      // 기존 사용자 프로필이 있는 경우
+      const userData = data[0];
       this.currentUser = {
-        id: data.id,
-        name: data.name,
-        email: data.email,
-        role: data.role as any,
-        assignedBranchIds: data.assigned_branch_ids,
-        trainerProfileId: data.trainer_profile_id
-      };
+        id: userData.id,
+        name: userData.name,
+        email: userData.email,
+        role: userData.role as UserRole,
+        assignedBranchIds: userData.assigned_branch_ids || [],
+        trainerProfileId: userData.trainer_profile_id
+      } as User;
+      
+      console.log('사용자 프로필 로드 완료:', this.currentUser);
     } catch (error) {
       console.error('사용자 프로필 로드 중 오류:', error);
     }
@@ -90,51 +189,41 @@ export class AuthService {
   // 로그인
   static async login(email: string, password: string): Promise<{ user: User | null; error: string | null }> {
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+      console.log('로그인 시도:', email);
+      
+      // 직접 fetch API를 사용하여 Supabase 인증 API 호출
+      const response = await fetch('https://eurpkgbmeziosjqkhmqv.supabase.co/auth/v1/token?grant_type=password', {
+        method: 'POST',
+        headers: {
+          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV1cnBrZ2JtZXppb3NqcWtobXF2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTcxODMwODEsImV4cCI6MjA3Mjc1OTA4MX0.0TX158-7MPgkKfhEasIs39cyfWhVGTbsRnLjhEp_ORQ',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          email: email,
+          password: password
+        })
       });
 
-      if (error) {
-        // 이메일 확인 오류인 경우 특별 처리
-        if (error.message.includes('Email not confirmed')) {
-          // 이메일 확인을 우회하고 사용자 프로필을 직접 로드
-          console.log('이메일 확인 우회 시도...');
-          
-          // 사용자 테이블에서 직접 사용자 정보 조회
-          const { data: userData, error: userError } = await supabase
-            .from('users')
-            .select('*')
-            .eq('email', email)
-            .single();
+      console.log('인증 응답 상태:', response.status);
 
-          if (userError || !userData) {
-            return { user: null, error: '사용자 정보를 찾을 수 없습니다.' };
-          }
-
-          // 현재 사용자로 설정
-          this.currentUser = {
-            id: userData.id,
-            name: userData.name,
-            email: userData.email,
-            role: userData.role as any,
-            assignedBranchIds: userData.assigned_branch_ids || [],
-            trainerProfileId: userData.trainer_profile_id
-          };
-
-          return { user: this.currentUser, error: null };
-        }
-        
-        return { user: null, error: error.message };
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('인증 실패:', errorData);
+        return { user: null, error: errorData.msg || '로그인에 실패했습니다.' };
       }
 
-      if (data.user) {
-        await this.loadUserProfile(data.user.id, data.user.email);
+      const authData = await response.json();
+      console.log('인증 성공:', authData);
+
+      if (authData.user) {
+        // 사용자 프로필 로드
+        await this.loadUserProfile(authData.user.id, authData.user.email);
         return { user: this.currentUser, error: null };
       }
 
       return { user: null, error: '로그인에 실패했습니다.' };
     } catch (error) {
+      console.error('로그인 중 오류:', error);
       return { user: null, error: '로그인 중 오류가 발생했습니다.' };
     }
   }
@@ -280,10 +369,10 @@ export class AuthService {
         id: data.id,
         name: data.name,
         email: data.email,
-        role: data.role as any,
+        role: data.role as UserRole,
         assignedBranchIds: data.assigned_branch_ids || [],
         trainerProfileId: data.trainer_profile_id
-      };
+      } as User;
 
       // 현재 사용자 업데이트
       if (this.currentUser && this.currentUser.id === userId) {
@@ -347,10 +436,10 @@ export class AuthService {
         id: data.id,
         name: data.name,
         email: data.email,
-        role: data.role as any,
-        assignedBranchIds: data.assigned_branch_ids,
+        role: data.role as UserRole,
+        assignedBranchIds: data.assigned_branch_ids || [],
         trainerProfileId: data.trainer_profile_id
-      };
+      } as User;
     } catch (error) {
       console.error('사용자 생성 중 오류:', error);
       return null;

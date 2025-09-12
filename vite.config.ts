@@ -6,7 +6,10 @@ export default defineConfig(({ mode }) => {
     return {
       server: {
         port: 3000,
-        host: true
+        host: true,
+        hmr: {
+          port: 3000
+        }
       },
       define: {
         'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),

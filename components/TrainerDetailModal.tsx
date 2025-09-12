@@ -16,6 +16,16 @@ interface TrainerDetailModalProps {
 
 export const TrainerDetailModal: React.FC<TrainerDetailModalProps> = ({ isOpen, onClose, trainer, sessions, programs, members, startDate, endDate }) => {
     const [searchFilter, setSearchFilter] = useState('');
+    const [modalStartDate, setModalStartDate] = useState(startDate);
+    const [modalEndDate, setModalEndDate] = useState(endDate);
+
+    // 모달이 열릴 때마다 초기 날짜를 현재 선택된 기간으로 설정
+    React.useEffect(() => {
+        if (isOpen) {
+            setModalStartDate(startDate);
+            setModalEndDate(endDate);
+        }
+    }, [isOpen, startDate, endDate]);
 
     if (!trainer) return null;
 
@@ -24,7 +34,116 @@ export const TrainerDetailModal: React.FC<TrainerDetailModalProps> = ({ isOpen, 
 
     const getAttendedNames = (ids: string[]) => ids.map(id => memberMap.get(id)?.name || 'N/A').join(', ');
 
-    const filteredSessions = sessions.filter(session => {
+    // 날짜 필터링 함수
+    const toYYYYMMDD = (date: Date) => {
+        const year = date.getFullYear();
+        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+        const day = date.getDate().toString().padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
+
+    // 퀵 필터 함수들
+    const setThisMonth = () => {
+        console.log('이번 달 버튼 클릭됨');
+        const today = new Date();
+        const y = today.getFullYear();
+        const m = today.getMonth();
+        const start = new Date(y, m, 1);
+        const end = new Date(y, m + 1, 0);
+        const startStr = toYYYYMMDD(start);
+        const endStr = toYYYYMMDD(end);
+        console.log('이번 달 설정:', startStr, '~', endStr);
+        setModalStartDate(startStr);
+        setModalEndDate(endStr);
+    };
+
+    const setLastMonth = () => {
+        console.log('지난 달 버튼 클릭됨');
+        const today = new Date();
+        const y = today.getFullYear();
+        const m = today.getMonth();
+        const start = new Date(y, m - 1, 1);
+        const end = new Date(y, m, 0);
+        const startStr = toYYYYMMDD(start);
+        const endStr = toYYYYMMDD(end);
+        console.log('지난 달 설정:', startStr, '~', endStr);
+        setModalStartDate(startStr);
+        setModalEndDate(endStr);
+    };
+
+    const setAllTime = () => {
+        console.log('전체 버튼 클릭됨');
+        // 실제 데이터가 있는 범위를 동적으로 계산
+        const allSessionDates = sessions.map(s => new Date(`${s.date}T00:00:00`));
+        console.log('전체 기간 계산 - 세션 수:', allSessionDates.length);
+        
+        if (allSessionDates.length === 0) {
+            // 데이터가 없으면 현재 년도로 설정
+            const today = new Date();
+            const start = new Date(today.getFullYear(), 0, 1);
+            const end = new Date(today.getFullYear(), 11, 31);
+            const startStr = toYYYYMMDD(start);
+            const endStr = toYYYYMMDD(end);
+            console.log('전체 기간 설정 (데이터 없음):', startStr, '~', endStr);
+            setModalStartDate(startStr);
+            setModalEndDate(endStr);
+        } else {
+            // 가장 이른 날짜와 가장 늦은 날짜 찾기
+            const minDate = new Date(Math.min(...allSessionDates.map(d => d.getTime())));
+            const maxDate = new Date(Math.max(...allSessionDates.map(d => d.getTime())));
+            
+            // 월 단위로 정리 (각 월의 1일과 마지막 날로 설정)
+            const start = new Date(minDate.getFullYear(), minDate.getMonth(), 1);
+            const end = new Date(maxDate.getFullYear(), maxDate.getMonth() + 1, 0);
+            
+            const startStr = toYYYYMMDD(start);
+            const endStr = toYYYYMMDD(end);
+            console.log('전체 기간 설정 (데이터 있음):', startStr, '~', endStr);
+            setModalStartDate(startStr);
+            setModalEndDate(endStr);
+        }
+    };
+
+    // 전체 기간이 선택되었는지 확인하는 함수
+    const isAllTimeSelected = () => {
+        if (sessions.length === 0) return false;
+        
+        const allSessionDates = sessions.map(s => new Date(`${s.date}T00:00:00`));
+        const minDate = new Date(Math.min(...allSessionDates.map(d => d.getTime())));
+        const maxDate = new Date(Math.max(...allSessionDates.map(d => d.getTime())));
+        
+        const dataStart = new Date(minDate.getFullYear(), minDate.getMonth(), 1);
+        const dataEnd = new Date(maxDate.getFullYear(), maxDate.getMonth() + 1, 0);
+        
+        const currentStart = new Date(`${modalStartDate}T00:00:00`);
+        const currentEnd = new Date(`${modalEndDate}T23:59:59`);
+        
+        return currentStart.getTime() === dataStart.getTime() && 
+               currentEnd.getTime() === dataEnd.getTime();
+    };
+
+    // 날짜 필터링된 세션들
+    const dateFilteredSessions = sessions.filter(session => {
+        const sessionDate = new Date(`${session.date}T00:00:00`);
+        const filterStartDate = new Date(`${modalStartDate}T00:00:00`);
+        const filterEndDate = new Date(`${modalEndDate}T23:59:59`);
+        return sessionDate >= filterStartDate && sessionDate <= filterEndDate;
+    });
+
+    // 디버깅을 위한 로그 - 모달이 열릴 때만 출력
+    if (isOpen) {
+        console.log('=== TrainerDetailModal 디버깅 정보 ===');
+        console.log('TrainerDetailModal - trainer:', trainer?.name);
+        console.log('TrainerDetailModal - sessions count:', sessions.length);
+        console.log('TrainerDetailModal - modalStartDate:', modalStartDate);
+        console.log('TrainerDetailModal - modalEndDate:', modalEndDate);
+        console.log('TrainerDetailModal - dateFilteredSessions count:', dateFilteredSessions.length);
+        console.log('TrainerDetailModal - sessions sample:', sessions.slice(0, 3).map(s => ({ id: s.id, date: s.date, trainerId: s.trainerId, status: s.status })));
+        console.log('=== 디버깅 정보 끝 ===');
+    }
+
+    // 검색 필터링된 세션들
+    const filteredSessions = dateFilteredSessions.filter(session => {
         if (searchFilter === '') return true;
         const program = programMap.get(session.programId);
         const lowercasedFilter = searchFilter.toLowerCase();
@@ -39,7 +158,7 @@ export const TrainerDetailModal: React.FC<TrainerDetailModalProps> = ({ isOpen, 
         const date = new Date(dateStr);
         return `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
     }
-    const periodTitle = `${formatDate(startDate)} ~ ${formatDate(endDate)}`;
+    const periodTitle = `${formatDate(modalStartDate)} ~ ${formatDate(modalEndDate)}`;
 
     const totalSessionsCount = filteredSessions.length;
     const totalFeeSum = filteredSessions.reduce((acc, session) => acc + session.trainerFee, 0);
@@ -67,7 +186,7 @@ export const TrainerDetailModal: React.FC<TrainerDetailModalProps> = ({ isOpen, 
         if (link.download !== undefined) {
             const url = URL.createObjectURL(blob);
             link.setAttribute("href", url);
-            link.setAttribute("download", `${formatDate(startDate)}-${formatDate(endDate)}_${trainer.name}_정산내역.csv`);
+            link.setAttribute("download", `${formatDate(modalStartDate)}-${formatDate(modalEndDate)}_${trainer.name}_정산내역.csv`);
             link.style.visibility = 'hidden';
             document.body.appendChild(link);
             link.click();
@@ -80,6 +199,38 @@ export const TrainerDetailModal: React.FC<TrainerDetailModalProps> = ({ isOpen, 
     return (
         <Modal isOpen={isOpen} onClose={onClose} title={title} maxWidth="max-w-4xl">
             <div className="space-y-4">
+                {/* 날짜 필터와 퀵 필터 */}
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 bg-slate-50 rounded-lg">
+                    <div className="flex items-center gap-2 flex-wrap">
+                        <input 
+                            type="date" 
+                            value={modalStartDate} 
+                            onChange={e => setModalStartDate(e.target.value)} 
+                            className="p-2 border rounded-md shadow-sm text-sm"
+                        />
+                        <span>~</span>
+                        <input 
+                            type="date" 
+                            value={modalEndDate} 
+                            onChange={e => setModalEndDate(e.target.value)} 
+                            className="p-2 border rounded-md shadow-sm text-sm"
+                        />
+                        <button 
+                            onClick={setAllTime} 
+                            className={`px-3 py-2 rounded-md shadow-sm text-sm font-medium border ${
+                                isAllTimeSelected() 
+                                    ? 'bg-blue-500 text-white border-blue-500' 
+                                    : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
+                            }`}
+                        >
+                            전체
+                        </button>
+                        <button onClick={setThisMonth} className="px-3 py-2 bg-white text-slate-700 rounded-md shadow-sm text-sm font-medium hover:bg-slate-100 border">이번 달</button>
+                        <button onClick={setLastMonth} className="px-3 py-2 bg-white text-slate-700 rounded-md shadow-sm text-sm font-medium hover:bg-slate-100 border">지난 달</button>
+                    </div>
+                </div>
+                
+                {/* 검색 필터와 다운로드 버튼 */}
                 <div className="flex justify-between items-center gap-4">
                     <input 
                         type="text"
