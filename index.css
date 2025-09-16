@@ -1,4 +1,7 @@
-/* placeholder to avoid 404 */
+/* Tailwind CSS 기본 스타일 */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 /* 새 강사 설정 유도 애니메이션 */
 @keyframes setup-pulse {
@@ -14,4 +17,305 @@
 
 .setup-pulse {
   animation: setup-pulse 2s infinite;
+}
+
+/* 반응형 유틸리티 클래스 */
+@layer utilities {
+  /* 컨테이너 유틸리티 */
+  .container-responsive {
+    @apply w-full mx-auto px-4 sm:px-6 lg:px-8;
+  }
+  
+  .container-mobile {
+    @apply max-w-sm mx-auto px-4;
+  }
+  
+  .container-tablet {
+    @apply max-w-4xl mx-auto px-6;
+  }
+  
+  .container-desktop {
+    @apply max-w-7xl mx-auto px-8;
+  }
+
+  /* 반응형 텍스트 */
+  .text-responsive-xs {
+    @apply text-xs sm:text-sm;
+  }
+  
+  .text-responsive-sm {
+    @apply text-sm sm:text-base;
+  }
+  
+  .text-responsive-base {
+    @apply text-base sm:text-lg;
+  }
+  
+  .text-responsive-lg {
+    @apply text-lg sm:text-xl;
+  }
+  
+  .text-responsive-xl {
+    @apply text-xl sm:text-2xl;
+  }
+  
+  .text-responsive-2xl {
+    @apply text-2xl sm:text-3xl lg:text-4xl;
+  }
+
+  /* 반응형 간격 */
+  .space-responsive-sm {
+    @apply space-y-2 sm:space-y-4;
+  }
+  
+  .space-responsive-md {
+    @apply space-y-4 sm:space-y-6;
+  }
+  
+  .space-responsive-lg {
+    @apply space-y-6 sm:space-y-8;
+  }
+
+  /* 반응형 패딩 */
+  .p-responsive-sm {
+    @apply p-2 sm:p-4;
+  }
+  
+  .p-responsive-md {
+    @apply p-4 sm:p-6;
+  }
+  
+  .p-responsive-lg {
+    @apply p-6 sm:p-8;
+  }
+
+  /* 반응형 마진 */
+  .m-responsive-sm {
+    @apply m-2 sm:m-4;
+  }
+  
+  .m-responsive-md {
+    @apply m-4 sm:m-6;
+  }
+  
+  .m-responsive-lg {
+    @apply m-6 sm:m-8;
+  }
+
+  /* 반응형 그리드 */
+  .grid-responsive-2 {
+    @apply grid grid-cols-1 sm:grid-cols-2 gap-4;
+  }
+  
+  .grid-responsive-3 {
+    @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4;
+  }
+  
+  .grid-responsive-4 {
+    @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4;
+  }
+
+  /* 반응형 플렉스 */
+  .flex-responsive-col {
+    @apply flex flex-col sm:flex-row;
+  }
+  
+  .flex-responsive-row {
+    @apply flex flex-row flex-wrap sm:flex-nowrap;
+  }
+
+  /* 반응형 숨김/표시 */
+  .hidden-mobile {
+    @apply hidden sm:block;
+  }
+  
+  .hidden-desktop {
+    @apply block sm:hidden;
+  }
+  
+  .visible-mobile {
+    @apply block sm:hidden;
+  }
+  
+  .visible-desktop {
+    @apply hidden sm:block;
+  }
+
+  /* 반응형 카드 */
+  .card-responsive {
+    @apply bg-white rounded-lg shadow-soft p-4 sm:p-6;
+  }
+  
+  .card-mobile {
+    @apply bg-white rounded-lg shadow-soft p-4;
+  }
+  
+  .card-desktop {
+    @apply bg-white rounded-lg shadow-medium p-6;
+  }
+
+  /* 반응형 버튼 */
+  .btn-responsive {
+    @apply px-4 py-2 sm:px-6 sm:py-3 text-sm sm:text-base;
+  }
+  
+  .btn-mobile {
+    @apply px-4 py-2 text-sm w-full sm:w-auto;
+  }
+
+  /* 반응형 모달 */
+  .modal-responsive {
+    @apply fixed inset-0 z-50 flex items-center justify-center p-4;
+  }
+  
+  .modal-content-responsive {
+    @apply bg-white rounded-lg shadow-strong w-full max-w-sm sm:max-w-md lg:max-w-lg;
+  }
+
+  /* 반응형 테이블 */
+  .table-responsive {
+    @apply w-full overflow-x-auto;
+  }
+  
+  .table-mobile {
+    @apply block sm:table;
+  }
+  
+  .table-desktop {
+    @apply hidden sm:table;
+  }
+
+  /* 반응형 네비게이션 */
+  .nav-responsive {
+    @apply flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-4;
+  }
+  
+  .nav-mobile {
+    @apply flex flex-col space-y-2;
+  }
+  
+  .nav-desktop {
+    @apply hidden sm:flex items-center space-x-4;
+  }
+
+  /* 반응형 사이드바 */
+  .sidebar-responsive {
+    @apply w-full sm:w-72 bg-slate-50 border-l border-slate-200 p-4;
+  }
+  
+  .sidebar-mobile {
+    @apply fixed inset-y-0 right-0 w-72 bg-white shadow-strong transform transition-transform duration-300 ease-in-out;
+  }
+  
+  .sidebar-desktop {
+    @apply relative w-72 bg-slate-50 border-l border-slate-200 p-4;
+  }
+
+  /* 반응형 헤더 */
+  .header-responsive {
+    @apply bg-white shadow-md p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-4 sm:space-y-0;
+  }
+  
+  .header-mobile {
+    @apply bg-white shadow-md p-4 flex flex-col space-y-4;
+  }
+  
+  .header-desktop {
+    @apply bg-white shadow-md p-4 flex justify-between items-center;
+  }
+
+  /* 반응형 폼 */
+  .form-responsive {
+    @apply space-y-4 sm:space-y-6;
+  }
+  
+  .form-group-responsive {
+    @apply flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-4;
+  }
+  
+  .form-label-responsive {
+    @apply text-sm sm:text-base font-medium text-slate-700;
+  }
+  
+  .form-input-responsive {
+    @apply w-full px-3 py-2 border border-slate-300 rounded-md text-sm sm:text-base;
+  }
+
+  /* 반응형 아이콘 */
+  .icon-responsive {
+    @apply w-4 h-4 sm:w-5 sm:h-5;
+  }
+  
+  .icon-mobile {
+    @apply w-5 h-5;
+  }
+  
+  .icon-desktop {
+    @apply w-6 h-6;
+  }
+
+  /* 반응형 애니메이션 */
+  .animate-fade-in {
+    animation: fadeIn 0.3s ease-in-out;
+  }
+  
+  .animate-slide-up {
+    animation: slideUp 0.3s ease-out;
+  }
+  
+  .animate-slide-down {
+    animation: slideDown 0.3s ease-out;
+  }
+  
+  .animate-scale-in {
+    animation: scaleIn 0.2s ease-out;
+  }
+  
+  .animate-bounce-gentle {
+    animation: bounceGentle 0.6s ease-in-out;
+  }
+}
+
+/* 반응형 애니메이션 키프레임 */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { 
+    transform: translateY(10px); 
+    opacity: 0; 
+  }
+  to { 
+    transform: translateY(0); 
+    opacity: 1; 
+  }
+}
+
+@keyframes slideDown {
+  from { 
+    transform: translateY(-10px); 
+    opacity: 0; 
+  }
+  to { 
+    transform: translateY(0); 
+    opacity: 1; 
+  }
+}
+
+@keyframes scaleIn {
+  from { 
+    transform: scale(0.95); 
+    opacity: 0; 
+  }
+  to { 
+    transform: scale(1); 
+    opacity: 1; 
+  }
+}
+
+@keyframes bounceGentle {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
 }
