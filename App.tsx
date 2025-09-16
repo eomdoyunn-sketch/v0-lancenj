@@ -19,6 +19,8 @@ import { MemberDetailModal, HistoryItem } from './components/MemberDetailModal';
 import { Auth } from './components/Auth';
 import { AuthService } from './lib/authService';
 import { DataManager } from './lib/dataService';
+import { useFeatureFlagContext, useResponsiveFeatures } from './hooks/useFeatureFlag';
+import { FeatureFlagDebug } from './components/FeatureFlag';
 
 const availableColors = [
     'bg-red-500', 'bg-red-600', 'bg-orange-500', 'bg-orange-600', 'bg-amber-500', 'bg-amber-600', 
@@ -79,6 +81,10 @@ type TrainerFormState = {
 };
 
 const App: React.FC = () => {
+  // Feature Flag 시스템 초기화
+  const { setUserContext, setDeviceContext, context } = useFeatureFlagContext();
+  const { isResponsiveEnabled, areAllEnabled } = useResponsiveFeatures(context);
+  
   const [programs, setPrograms] = useState<MemberProgram[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [trainers, setTrainers] = useState<Trainer[]>([]);
@@ -2765,6 +2771,9 @@ const App: React.FC = () => {
           <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-x-4 border-x-transparent border-t-4 border-t-slate-900"></div>
         </div>
       )}
+      
+      {/* Feature Flag Debug (개발 환경에서만 표시) */}
+      <FeatureFlagDebug context={context} />
     </div>
     </DndContext>
   );
