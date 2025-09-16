@@ -6,7 +6,18 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest",
+    "test:responsive": "vitest run tests/responsive.test.tsx",
+    "test:visual": "vitest run tests/visual.test.tsx",
+    "test:a11y": "vitest run tests/accessibility.test.tsx",
+    "test:axe": "vitest run tests/axe.test.tsx",
+    "test:performance": "vitest run tests/performance.test.tsx",
+    "test:smoke": "vitest run tests/smoke.test.tsx",
+    "test:coverage": "vitest run --coverage",
+    "analyze": "vite-bundle-analyzer",
+    "deploy:staging": "echo 'Deploying to staging...'",
+    "deploy:production": "echo 'Deploying to production...'"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -17,6 +28,16 @@
   "devDependencies": {
     "@types/node": "^22.14.0",
     "typescript": "~5.8.2",
-    "vite": "^6.2.0"
+    "vite": "^6.2.0",
+    "@testing-library/react": "^14.0.0",
+    "@testing-library/jest-dom": "^6.0.0",
+    "@testing-library/user-event": "^14.0.0",
+    "vitest": "^1.0.0",
+    "jsdom": "^23.0.0",
+    "@vitest/coverage-v8": "^1.0.0",
+    "vite-bundle-analyzer": "^0.7.0",
+    "@lhci/cli": "^0.12.0",
+    "axe-core": "^4.8.0",
+    "@axe-core/react": "^4.8.0"
   }
 }
