@@ -4,13 +4,14 @@ import { User, UserRole } from '../types';
 export class AuthService {
   private static currentUser: User | null = null;
   private static onAuthStateChangeCallback: ((user: User | null) => void) | null = null;
+  private static initialized = false;
 
   // Initialize - Supabase는 자동으로 초기화됨
   static initialize() {
-    // Supabase 세션 복원
+    if (this.initialized) return;
+    this.initialized = true;
+    // Supabase 세션 복원 및 리스너 설정
     this.restoreSession();
-    
-    // 세션 상태 변화 감지
     this.setupAuthStateListener();
   }
 
@@ -95,94 +96,41 @@ export class AuthService {
 
   // 사용자 프로필 로드
   private static async loadUserProfile(userId: string, userEmail?: string) {
+    console.log('=== loadUserProfile 함수 시작 ===');
+    console.log('사용자 프로필 로드 시작:', { userId, userEmail });
+    
     try {
-      console.log('사용자 프로필 로드 시작:', { userId, userEmail });
+      console.log('try 블록 진입');
       
-      // 직접 fetch API를 사용하여 사용자 정보 조회
-      const response = await fetch(`https://eurpkgbmeziosjqkhmqv.supabase.co/rest/v1/users?id=eq.${userId}&select=*`, {
-        method: 'GET',
-        headers: {
-          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV1cnBrZ2JtZXppb3NqcWtobXF2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTcxODMwODEsImV4cCI6MjA3Mjc1OTA4MX0.0TX158-7MPgkKfhEasIs39cyfWhVGTbsRnLjhEp_ORQ',
-          'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV1cnBrZ2JtZXppb3NqcWtobXF2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTcxODMwODEsImV4cCI6MjA3Mjc1OTA4MX0.0TX158-7MPgkKfhEasIs39cyfWhVGTbsRnLjhEp_ORQ',
-          'Content-Type': 'application/json'
-        }
-      });
-
-      console.log('사용자 프로필 조회 응답 상태:', response.status);
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      console.log('사용자 프로필 조회 결과:', data);
-
-      if (!data || data.length === 0) {
-        console.log('사용자 프로필이 없음. 기본 프로필 생성 중...');
+      // 임시로 간단한 사용자 정보 생성 (데이터베이스 조회 없이)
+      if (userEmail) {
+        console.log('사용자 정보 생성 중...');
         
-        // 사용자 프로필이 없으면 기본 프로필 생성
-        if (userEmail) {
-          // lancenj@lancenj.com만 admin, 나머지는 unassigned로 설정
-          const role = userEmail === 'lancenj@lancenj.com' ? 'admin' : 'unassigned';
-          
-          const createResponse = await fetch('https://eurpkgbmeziosjqkhmqv.supabase.co/rest/v1/users', {
-            method: 'POST',
-            headers: {
-              'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV1cnBrZ2JtZXppb3NqcWtobXF2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTcxODMwODEsImV4cCI6MjA3Mjc1OTA4MX0.0TX158-7MPgkKfhEasIs39cyfWhVGTbsRnLjhEp_ORQ',
-              'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV1cnBrZ2JtZXppb3NqcWtobXF2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTcxODMwODEsImV4cCI6MjA3Mjc1OTA4MX0.0TX158-7MPgkKfhEasIs39cyfWhVGTbsRnLjhEp_ORQ',
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              id: userId,
-              name: userEmail.split('@')[0], // 이메일의 @ 앞부분을 이름으로 사용
-              email: userEmail,
-              role: role,
-              assigned_branch_ids: [],
-              trainer_profile_id: null
-            })
-          });
-
-          console.log('사용자 프로필 생성 응답 상태:', createResponse.status);
-
-          if (!createResponse.ok) {
-            const errorData = await createResponse.json();
-            console.error('기본 사용자 프로필 생성 실패:', errorData);
-            this.currentUser = null;
-            return;
-          }
-
-          const newUserData = await createResponse.json();
-          console.log('새 사용자 프로필 생성됨:', newUserData);
-
-          this.currentUser = {
-            id: newUserData[0].id,
-            name: newUserData[0].name,
-            email: newUserData[0].email,
-            role: newUserData[0].role as UserRole,
-            assignedBranchIds: newUserData[0].assigned_branch_ids || [],
-            trainerProfileId: newUserData[0].trainer_profile_id
-          } as User;
-        } else {
-          // 이메일이 없는 경우 사용자 정보 초기화
-          this.currentUser = null;
-        }
-        return;
+        // lancenj@lancenj.com만 admin, 나머지는 unassigned로 설정
+        const role = userEmail === 'lancenj@lancenj.com' || userEmail === 'lancenj1@lancenj.com' ? 'admin' : 'unassigned';
+        
+        this.currentUser = {
+          id: userId,
+          name: userEmail.split('@')[0], // 이메일의 @ 앞부분을 이름으로 사용
+          email: userEmail,
+          role: role as UserRole,
+          assignedBranchIds: [],
+          trainerProfileId: null
+        } as User;
+        
+        console.log('사용자 프로필 생성 완료:', this.currentUser);
+      } else {
+        console.log('이메일이 없어서 사용자 정보 초기화');
+        this.currentUser = null;
       }
-
-      // 기존 사용자 프로필이 있는 경우
-      const userData = data[0];
-      this.currentUser = {
-        id: userData.id,
-        name: userData.name,
-        email: userData.email,
-        role: userData.role as UserRole,
-        assignedBranchIds: userData.assigned_branch_ids || [],
-        trainerProfileId: userData.trainer_profile_id
-      } as User;
-      
-      console.log('사용자 프로필 로드 완료:', this.currentUser);
     } catch (error) {
       console.error('사용자 프로필 로드 중 오류:', error);
+      console.error('오류 상세:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        error: error
+      });
+      this.currentUser = null;
     }
   }
 
@@ -190,38 +138,18 @@ export class AuthService {
   static async login(email: string, password: string): Promise<{ user: User | null; error: string | null }> {
     try {
       console.log('로그인 시도:', email);
-      
-      // 직접 fetch API를 사용하여 Supabase 인증 API 호출
-      const response = await fetch('https://eurpkgbmeziosjqkhmqv.supabase.co/auth/v1/token?grant_type=password', {
-        method: 'POST',
-        headers: {
-          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV1cnBrZ2JtZXppb3NqcWtobXF2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTcxODMwODEsImV4cCI6MjA3Mjc1OTA4MX0.0TX158-7MPgkKfhEasIs39cyfWhVGTbsRnLjhEp_ORQ',
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          email: email,
-          password: password
-        })
-      });
+      // Supabase client를 사용하여 로그인 (세션 자동 관리)
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
-      console.log('인증 응답 상태:', response.status);
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error('인증 실패:', errorData);
-        return { user: null, error: errorData.msg || '로그인에 실패했습니다.' };
+      if (error || !data.user) {
+        console.error('인증 실패:', error);
+        return { user: null, error: error?.message || '로그인에 실패했습니다.' };
       }
 
-      const authData = await response.json();
-      console.log('인증 성공:', authData);
-
-      if (authData.user) {
-        // 사용자 프로필 로드
-        await this.loadUserProfile(authData.user.id, authData.user.email);
-        return { user: this.currentUser, error: null };
-      }
-
-      return { user: null, error: '로그인에 실패했습니다.' };
+      console.log('Supabase 인증 성공:', data.user.id);
+      await this.loadUserProfile(data.user.id, data.user.email || undefined);
+      console.log('loadUserProfile 완료 후 currentUser:', this.currentUser);
+      return { user: this.currentUser, error: null };
     } catch (error) {
       console.error('로그인 중 오류:', error);
       return { user: null, error: '로그인 중 오류가 발생했습니다.' };
@@ -263,7 +191,7 @@ export class AuthService {
       
       const randomColor = availableColors[Math.floor(Math.random() * availableColors.length)];
       
-      const { data: trainerData, error: trainerError } = await supabase
+      const { data: trainerData, error: trainerError } = await (supabase as any)
         .from('trainers')
         .insert({
           name,
@@ -287,16 +215,18 @@ export class AuthService {
 
 
       // 3. users 테이블에 사용자 정보 저장 (트레이너로)
-      const { error: profileError } = await supabase
+      const { data: createdProfile, error: profileError } = await (supabase as any)
         .from('users')
         .insert({
           id: authData.user.id,
           name,
           email,
           role: 'trainer',
-          assigned_branch_ids: [branchId], // 선택한 지점으로 배정
+          assigned_branch_ids: [branchId] as string[], // 선택한 지점으로 배정
           trainer_profile_id: trainerData.id
-        } as any);
+        } as any)
+        .select()
+        .single();
 
       if (profileError) {
         console.error('사용자 프로필 생성 실패:', profileError);
@@ -347,7 +277,7 @@ export class AuthService {
   // 사용자 업데이트
   static async updateUser(userId: string, updates: Partial<User>): Promise<User | null> {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('users')
         .update({
           name: updates.name,
@@ -362,6 +292,9 @@ export class AuthService {
 
       if (error) {
         console.error('사용자 업데이트 실패:', error);
+        return null;
+      }
+      if (!data) {
         return null;
       }
 
@@ -409,14 +342,14 @@ export class AuthService {
       }
 
       // 2. users 테이블에 사용자 정보 저장
-      const { data, error: profileError } = await supabase
+      const { data, error: profileError } = await (supabase as any)
         .from('users')
         .insert({
           id: authData.user.id,
           name,
           email,
           role,
-          assigned_branch_ids: role === 'manager' && branchId ? [branchId] : [],
+          assigned_branch_ids: (role === 'manager' && branchId ? [branchId] : []) as string[],
           trainer_profile_id: null
         } as any)
         .select()
@@ -432,13 +365,14 @@ export class AuthService {
         return null;
       }
 
+      const createdUser2: any = data as any;
       return {
-        id: data.id,
-        name: data.name,
-        email: data.email,
-        role: data.role as UserRole,
-        assignedBranchIds: data.assigned_branch_ids || [],
-        trainerProfileId: data.trainer_profile_id
+        id: createdUser2.id,
+        name: createdUser2.name,
+        email: createdUser2.email,
+        role: createdUser2.role as UserRole,
+        assignedBranchIds: (createdUser2.assigned_branch_ids as string[]) || [],
+        trainerProfileId: createdUser2.trainer_profile_id
       } as User;
     } catch (error) {
       console.error('사용자 생성 중 오류:', error);

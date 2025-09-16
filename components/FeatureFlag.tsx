@@ -1,7 +1,7 @@
 import React from 'react';
 import { FeatureFlag, FeatureFlagValue, useFeatureFlag } from '../lib/featureFlags';
 
-// Feature Flag 컴포넌트 래퍼
+// Feature Flag 컴포?�트 ?�퍼
 export const FeatureFlagWrapper: React.FC<{
   flagId: string;
   children: React.ReactNode;
@@ -15,7 +15,7 @@ export const FeatureFlagWrapper: React.FC<{
   );
 };
 
-// Feature Flag 값 컴포넌트 래퍼
+// Feature Flag �?컴포?�트 ?�퍼
 export const FeatureFlagValueWrapper: React.FC<{
   flagId: string;
   defaultValue: any;
@@ -29,7 +29,7 @@ export const FeatureFlagValueWrapper: React.FC<{
   );
 };
 
-// 반응형 기능 활성화 확인 컴포넌트
+// 반응??기능 ?�성???�인 컴포?�트
 export const ResponsiveFeature: React.FC<{
   children: React.ReactNode;
   fallback?: React.ReactNode;
@@ -42,7 +42,7 @@ export const ResponsiveFeature: React.FC<{
   );
 };
 
-// 모바일 네비게이션 활성화 확인 컴포넌트
+// 모바???�비게이???�성???�인 컴포?�트
 export const MobileNavigationFeature: React.FC<{
   children: React.ReactNode;
   fallback?: React.ReactNode;
@@ -55,7 +55,7 @@ export const MobileNavigationFeature: React.FC<{
   );
 };
 
-// 반응형 테이블 활성화 확인 컴포넌트
+// 반응???�이�??�성???�인 컴포?�트
 export const ResponsiveTableFeature: React.FC<{
   children: React.ReactNode;
   fallback?: React.ReactNode;
@@ -68,7 +68,7 @@ export const ResponsiveTableFeature: React.FC<{
   );
 };
 
-// 반응형 사이드바 활성화 확인 컴포넌트
+// 반응???�이?�바 ?�성???�인 컴포?�트
 export const ResponsiveSidebarFeature: React.FC<{
   children: React.ReactNode;
   fallback?: React.ReactNode;
@@ -81,7 +81,7 @@ export const ResponsiveSidebarFeature: React.FC<{
   );
 };
 
-// 반응형 모달 활성화 확인 컴포넌트
+// 반응??모달 ?�성???�인 컴포?�트
 export const ResponsiveModalFeature: React.FC<{
   children: React.ReactNode;
   fallback?: React.ReactNode;
@@ -94,7 +94,7 @@ export const ResponsiveModalFeature: React.FC<{
   );
 };
 
-// 반응형 그리드 활성화 확인 컴포넌트
+// 반응??그리???�성???�인 컴포?�트
 export const ResponsiveGridFeature: React.FC<{
   children: React.ReactNode;
   fallback?: React.ReactNode;
@@ -107,7 +107,7 @@ export const ResponsiveGridFeature: React.FC<{
   );
 };
 
-// 반응형 타이포그래피 활성화 확인 컴포넌트
+// 반응???�?�포그래???�성???�인 컴포?�트
 export const ResponsiveTypographyFeature: React.FC<{
   children: React.ReactNode;
   fallback?: React.ReactNode;
@@ -120,7 +120,7 @@ export const ResponsiveTypographyFeature: React.FC<{
   );
 };
 
-// 반응형 애니메이션 활성화 확인 컴포넌트
+// 반응???�니메이???�성???�인 컴포?�트
 export const ResponsiveAnimationFeature: React.FC<{
   children: React.ReactNode;
   fallback?: React.ReactNode;
@@ -133,7 +133,7 @@ export const ResponsiveAnimationFeature: React.FC<{
   );
 };
 
-// Feature Flag 상태 표시 컴포넌트
+// Feature Flag ?�태 ?�시 컴포?�트
 export const FeatureFlagStatus: React.FC<{
   flagId: string;
   context?: any;
@@ -155,7 +155,7 @@ export const FeatureFlagStatus: React.FC<{
   );
 };
 
-// 모든 반응형 기능 상태 표시 컴포넌트
+// 모든 반응??기능 ?�태 ?�시 컴포?�트
 export const ResponsiveFeatureStatus: React.FC<{
   context?: any;
 }> = ({ context }) => {
@@ -182,13 +182,13 @@ export const ResponsiveFeatureStatus: React.FC<{
   );
 };
 
-// Feature Flag 디버그 컴포넌트 (개발 환경에서만 사용)
+// Feature Flag ?�버�?컴포?�트 (개발 ?�경?�서�??�용)
 export const FeatureFlagDebug: React.FC<{
   context?: any;
 }> = ({ context }) => {
   const [isVisible, setIsVisible] = React.useState(false);
   
-  // 개발 환경에서만 표시
+  // 개발 ?�경?�서�??�시
   if (process.env.NODE_ENV !== 'development') {
     return null;
   }
@@ -200,7 +200,7 @@ export const FeatureFlagDebug: React.FC<{
         className="bg-slate-800 text-white p-2 rounded-full shadow-lg hover:bg-slate-700 transition-colors"
         title="Feature Flag Debug"
       >
-        🚩
+        ?��
       </button>
       
       {isVisible && (
@@ -211,7 +211,7 @@ export const FeatureFlagDebug: React.FC<{
               onClick={() => setIsVisible(false)}
               className="text-slate-400 hover:text-slate-600"
             >
-              ✕
+              ??
             </button>
           </div>
           

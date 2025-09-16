@@ -3,6 +3,8 @@
  * 반응형 기능의 점진적 배포를 위한 플래그 관리
  */
 
+import React from 'react';
+
 export interface FeatureFlag {
   id: string;
   name: string;
@@ -287,10 +289,11 @@ export const useFeatureFlag = (flagId: string, context?: FeatureFlagContext) => 
   React.useEffect(() => {
     const enabled = featureFlagStore.isEnabled(flagId, context);
     const flagValue = featureFlagStore.getValue(flagId, null, context);
-    
-    setIsEnabled(enabled);
-    setValue(flagValue);
-  }, [flagId, context]);
+
+    // Only update state when something actually changed to avoid render thrash
+    setIsEnabled(prev => (prev !== enabled ? enabled : prev));
+    setValue(prev => (prev !== flagValue ? flagValue : prev));
+  }, [flagId, JSON.stringify(context)]);
 
   return { isEnabled, value };
 };

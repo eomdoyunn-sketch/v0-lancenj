@@ -2,7 +2,9 @@ import React from 'react';
 import { Member, MemberProgram, Session, Trainer, Branch, User } from '../types';
 import { ScheduleCalendar } from './ScheduleCalendar';
 import { useResponsive } from '../hooks/useResponsive';
-import { Container, Grid, Flex } from './layout/Container';
+import { Container } from './layout/Container';
+import { Grid } from './layout/Grid';
+import { Flex } from './layout/Flex';
 
 interface DashboardProps {
   trainers: Trainer[];

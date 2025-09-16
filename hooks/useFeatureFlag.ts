@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { featureFlagStore, FeatureFlagContext } from '../lib/featureFlags';
 
 /**
- * Feature Flag 훅
- * 컴포넌트에서 Feature Flag 상태를 쉽게 사용할 수 있도록 하는 훅
+ * Feature Flag ??
+ * 컴포?�트?�서 Feature Flag ?�태�??�게 ?�용?????�도�??�는 ??
  */
 export const useFeatureFlag = (flagId: string, context?: FeatureFlagContext) => {
   const [isEnabled, setIsEnabled] = useState(false);
@@ -28,13 +28,13 @@ export const useFeatureFlag = (flagId: string, context?: FeatureFlagContext) => 
     };
 
     checkFlag();
-  }, [flagId, context]);
+  }, [flagId, JSON.stringify(context)]);
 
   return { isEnabled, value, loading };
 };
 
 /**
- * 여러 Feature Flag를 한 번에 확인하는 훅
+ * ?�러 Feature Flag�???번에 ?�인?�는 ??
  */
 export const useFeatureFlags = (flagIds: string[], context?: FeatureFlagContext) => {
   const [flags, setFlags] = useState<Record<string, { isEnabled: boolean; value: any; loading: boolean }>>({});
@@ -61,16 +61,16 @@ export const useFeatureFlags = (flagIds: string[], context?: FeatureFlagContext)
     };
 
     checkFlags();
-  }, [flagIds, context]);
+  }, [JSON.stringify(flagIds), JSON.stringify(context)]);
 
   return { flags, loading };
 };
 
 /**
- * 반응형 기능 상태를 확인하는 훅
+ * 반응??기능 ?�태�??�인?�는 ??
  */
 export const useResponsiveFeatures = (context?: FeatureFlagContext) => {
-  const responsiveFlags = [
+  const responsiveFlags = useMemo(() => ([
     'responsive-design',
     'mobile-navigation',
     'responsive-tables',
@@ -79,7 +79,7 @@ export const useResponsiveFeatures = (context?: FeatureFlagContext) => {
     'responsive-grid',
     'responsive-typography',
     'responsive-animations',
-  ];
+  ]), []);
 
   const { flags, loading } = useFeatureFlags(responsiveFlags, context);
 
@@ -110,7 +110,7 @@ export const useResponsiveFeatures = (context?: FeatureFlagContext) => {
 };
 
 /**
- * Feature Flag 컨텍스트를 관리하는 훅
+ * Feature Flag 컨텍?�트�?관리하????
  */
 export const useFeatureFlagContext = () => {
   const [context, setContext] = useState<FeatureFlagContext>({});
@@ -144,7 +144,7 @@ export const useFeatureFlagContext = () => {
 };
 
 /**
- * Feature Flag 상태를 실시간으로 모니터링하는 훅
+ * Feature Flag ?�태�??�시간으�?모니?�링?�는 ??
  */
 export const useFeatureFlagMonitor = (flagId: string, context?: FeatureFlagContext) => {
   const [isEnabled, setIsEnabled] = useState(false);
@@ -162,13 +162,13 @@ export const useFeatureFlagMonitor = (flagId: string, context?: FeatureFlagConte
     } catch (error) {
       console.error(`Error monitoring feature flag '${flagId}':`, error);
     }
-  }, [flagId, context]);
+  }, [flagId, JSON.stringify(context)]);
 
   useEffect(() => {
-    // 초기 확인
+    // 초기 ?�인
     checkFlag();
 
-    // 주기적으로 확인 (5분마다)
+    // 주기?�으�??�인 (5분마??
     const interval = setInterval(checkFlag, 5 * 60 * 1000);
 
     return () => clearInterval(interval);
@@ -183,7 +183,7 @@ export const useFeatureFlagMonitor = (flagId: string, context?: FeatureFlagConte
 };
 
 /**
- * Feature Flag A/B 테스트를 위한 훅
+ * Feature Flag A/B ?�스?��? ?�한 ??
  */
 export const useFeatureFlagABTest = (flagId: string, variants: Record<string, any>, context?: FeatureFlagContext) => {
   const { isEnabled, value } = useFeatureFlag(flagId, context);
@@ -197,7 +197,7 @@ export const useFeatureFlagABTest = (flagId: string, variants: Record<string, an
       return variants[value];
     }
 
-    // 기본적으로 A/B 테스트를 위한 랜덤 선택
+    // 기본?�으�?A/B ?�스?��? ?�한 ?�덤 ?�택
     const variantKeys = Object.keys(variants);
     const randomIndex = Math.floor(Math.random() * variantKeys.length);
     return variants[variantKeys[randomIndex]];
@@ -217,13 +217,13 @@ export const useFeatureFlagABTest = (flagId: string, variants: Record<string, an
 };
 
 /**
- * Feature Flag 상태를 로컬 스토리지에 저장하는 훅
+ * Feature Flag ?�태�?로컬 ?�토리�????�?�하????
  */
 export const useFeatureFlagPersistence = () => {
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
-    // 로컬 스토리지에서 Feature Flag 상태 복원
+    // 로컬 ?�토리�??�서 Feature Flag ?�태 복원
     try {
       const savedFlags = localStorage.getItem('feature-flags');
       if (savedFlags) {
