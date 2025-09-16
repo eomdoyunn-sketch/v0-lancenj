@@ -1,6 +1,8 @@
 import React from 'react';
 import { Member, MemberProgram, Session, Trainer, Branch, User } from '../types';
 import { ScheduleCalendar } from './ScheduleCalendar';
+import { useResponsive } from '../hooks/useResponsive';
+import { Container, Grid, Flex } from './layout/Container';
 
 interface DashboardProps {
   trainers: Trainer[];
@@ -37,6 +39,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
     setFilter,
     currentUser,
 }) => {
+  const { isMobile, isTablet } = useResponsive();
   
   const programMap = new Map(programs.map(p => [p.id, p]));
   const branchMap = new Map(allBranches.map(b => [b.id, b.name]));
@@ -156,109 +159,156 @@ export const Dashboard: React.FC<DashboardProps> = ({
   }
 
   return (
-    <div className="flex-1 p-8 bg-slate-100 overflow-y-auto">
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-6 gap-4">
-        <h2 className="text-3xl font-bold text-slate-800 shrink-0">
-            {`${formatDate(startDate)} ~ ${formatDate(endDate)}`} 정산 현황
-        </h2>
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full lg:w-auto justify-end">
-            <div className="flex items-center gap-2 p-1 bg-slate-200 rounded-lg flex-wrap">
-                {/* 관리자만 모든 지점 버튼 표시 */}
-                {currentUser?.role === 'admin' && (
-                    <button 
-                        onClick={() => setFilter({ branchId: '' })}
-                        className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${filter.branchId === '' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-600 hover:bg-slate-300'}`}
-                    >
-                        모든 지점
-                    </button>
-                )}
-                {allBranches.map(branch => (
-                    <button 
-                        key={branch.id}
-                        onClick={() => setFilter({ branchId: branch.id })}
-                        className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${filter.branchId === branch.id ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-600 hover:bg-slate-300'}`}
-                    >
-                        {branch.name}
-                    </button>
-                ))}
-            </div>
-            <div className="flex items-center gap-2 flex-wrap">
-                <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="p-2 border rounded-md shadow-sm text-sm"/>
-                <span>~</span>
-                <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="p-2 border rounded-md shadow-sm text-sm"/>
-                <button 
-                    onClick={setAllTime} 
-                    className={`px-3 py-2 rounded-md shadow-sm text-sm font-medium border ${
-                        isAllTimeSelected() 
-                            ? 'bg-blue-500 text-white border-blue-500' 
-                            : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
-                    }`}
-                >
-                    전체
-                </button>
-                <button onClick={setThisMonth} className="px-3 py-2 bg-white text-slate-700 rounded-md shadow-sm text-sm font-medium hover:bg-slate-100 border">이번 달</button>
-                <button onClick={setLastMonth} className="px-3 py-2 bg-white text-slate-700 rounded-md shadow-sm text-sm font-medium hover:bg-slate-100 border">지난 달</button>
-            </div>
+    <div className="flex-1 p-4 sm:p-6 lg:p-8 bg-slate-100 overflow-y-auto">
+      <Container>
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-6 gap-4">
+          <h2 className={`${isMobile ? 'text-xl' : 'text-2xl lg:text-3xl'} font-bold text-slate-800 shrink-0`}>
+              {`${formatDate(startDate)} ~ ${formatDate(endDate)}`} 정산 현황
+          </h2>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full lg:w-auto justify-end">
+              <div className="flex items-center gap-2 p-1 bg-slate-200 rounded-lg flex-wrap">
+                  {/* 관리자만 모든 지점 버튼 표시 */}
+                  {currentUser?.role === 'admin' && (
+                      <button 
+                          onClick={() => setFilter({ branchId: '' })}
+                          className={`px-2 sm:px-3 py-1 rounded-md text-xs sm:text-sm font-medium transition-colors ${filter.branchId === '' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-600 hover:bg-slate-300'}`}
+                      >
+                          모든 지점
+                      </button>
+                  )}
+                  {allBranches.map(branch => (
+                      <button 
+                          key={branch.id}
+                          onClick={() => setFilter({ branchId: branch.id })}
+                          className={`px-2 sm:px-3 py-1 rounded-md text-xs sm:text-sm font-medium transition-colors ${filter.branchId === branch.id ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-600 hover:bg-slate-300'}`}
+                      >
+                          {branch.name}
+                      </button>
+                  ))}
+              </div>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 flex-wrap">
+                  <div className="flex items-center gap-2">
+                      <input 
+                          type="date" 
+                          value={startDate} 
+                          onChange={e => setStartDate(e.target.value)} 
+                          className="p-2 border rounded-md shadow-sm text-sm w-full sm:w-auto"
+                      />
+                      <span className="hidden sm:inline">~</span>
+                      <input 
+                          type="date" 
+                          value={endDate} 
+                          onChange={e => setEndDate(e.target.value)} 
+                          className="p-2 border rounded-md shadow-sm text-sm w-full sm:w-auto"
+                      />
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                      <button 
+                          onClick={setAllTime} 
+                          className={`px-3 py-2 rounded-md shadow-sm text-sm font-medium border ${
+                              isAllTimeSelected() 
+                                  ? 'bg-blue-500 text-white border-blue-500' 
+                                  : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
+                          }`}
+                      >
+                          전체
+                      </button>
+                      <button onClick={setThisMonth} className="px-3 py-2 bg-white text-slate-700 rounded-md shadow-sm text-sm font-medium hover:bg-slate-100 border">이번 달</button>
+                      <button onClick={setLastMonth} className="px-3 py-2 bg-white text-slate-700 rounded-md shadow-sm text-sm font-medium hover:bg-slate-100 border">지난 달</button>
+                  </div>
+              </div>
+          </div>
         </div>
-      </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          <div className="bg-white p-6 rounded-xl shadow-md">
-              <h3 className="text-slate-500 font-medium">선택 기간 총 완료 수업</h3>
-              <p className="text-4xl font-bold text-blue-600 mt-2">{totalMonthSessions.toLocaleString()}<span className="text-xl ml-2">회</span></p>
+        
+        <Grid cols={2} gap="lg" className="mb-8">
+            <div className="bg-white p-4 sm:p-6 rounded-xl shadow-md">
+                <h3 className="text-slate-500 font-medium text-sm sm:text-base">선택 기간 총 완료 수업</h3>
+                <p className={`${isMobile ? 'text-2xl' : 'text-3xl lg:text-4xl'} font-bold text-blue-600 mt-2`}>
+                  {totalMonthSessions.toLocaleString()}
+                  <span className={`${isMobile ? 'text-lg' : 'text-xl'} ml-2`}>회</span>
+                </p>
+            </div>
+            <div className="bg-white p-4 sm:p-6 rounded-xl shadow-md">
+                <h3 className="text-slate-500 font-medium text-sm sm:text-base">선택 기간 총 강사료</h3>
+                <p className={`${isMobile ? 'text-2xl' : 'text-3xl lg:text-4xl'} font-bold text-green-600 mt-2`}>
+                  ₩{totalMonthRevenue.toLocaleString()}
+                </p>
+            </div>
+        </Grid>
+        
+        <div className="bg-white rounded-xl shadow-md overflow-hidden">
+          {/* 데스크톱 테이블 */}
+          <div className="hidden sm:block">
+            <table className="w-full text-left">
+              <thead className="bg-slate-50">
+                <tr>
+                  <th className="p-4 font-semibold text-slate-600">강사명</th>
+                  <th className="p-4 font-semibold text-slate-600">상태</th>
+                  <th className="p-4 font-semibold text-slate-600 text-right">총 수업 횟수</th>
+                  <th className="p-4 font-semibold text-slate-600 text-right">총 수업료</th>
+                </tr>
+              </thead>
+              <tbody>
+                {trainerStats.map(stat => (
+                  <tr key={stat.id} className="border-t border-slate-100 hover:bg-slate-50 cursor-pointer" onClick={() => onTrainerClick(stat.id)}>
+                    <td className="p-4 font-medium text-slate-800">{stat.name}</td>
+                    <td className="p-4">
+                      <span className={`px-2 py-1 text-xs font-semibold rounded-full ${stat.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                        {stat.isActive ? '활성' : '비활성'}
+                      </span>
+                    </td>
+                    <td className="p-4 text-right text-slate-600 font-mono">{stat.sessionCount} 회</td>
+                    <td className="p-4 text-right text-slate-800 font-semibold font-mono">₩{stat.totalFee.toLocaleString()}</td>
+                  </tr>
+                ))}
+                {trainerStats.length === 0 && (
+                  <tr>
+                      <td colSpan={4} className="text-center py-10 px-6 text-slate-500">
+                          해당 기간/지점의 정산 내역이 없습니다.
+                      </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
-          <div className="bg-white p-6 rounded-xl shadow-md">
-              <h3 className="text-slate-500 font-medium">선택 기간 총 강사료</h3>
-              <p className="text-4xl font-bold text-green-600 mt-2">₩{totalMonthRevenue.toLocaleString()}</p>
-          </div>
-      </div>
-      
-      <div className="bg-white rounded-xl shadow-md overflow-hidden">
-        <table className="w-full text-left">
-          <thead className="bg-slate-50">
-            <tr>
-              <th className="p-4 font-semibold text-slate-600">강사명</th>
-              <th className="p-4 font-semibold text-slate-600">상태</th>
-              <th className="p-4 font-semibold text-slate-600 text-right">총 수업 횟수</th>
-              <th className="p-4 font-semibold text-slate-600 text-right">총 수업료</th>
-            </tr>
-          </thead>
-          <tbody>
+          
+          {/* 모바일 카드 뷰 */}
+          <div className="sm:hidden">
             {trainerStats.map(stat => (
-              <tr key={stat.id} className="border-t border-slate-100 hover:bg-slate-50 cursor-pointer" onClick={() => onTrainerClick(stat.id)}>
-                <td className="p-4 font-medium text-slate-800">{stat.name}</td>
-                <td className="p-4">
+              <div key={stat.id} className="p-4 border-b border-slate-100 hover:bg-slate-50 cursor-pointer" onClick={() => onTrainerClick(stat.id)}>
+                <div className="flex justify-between items-start mb-2">
+                  <h3 className="font-medium text-slate-800">{stat.name}</h3>
                   <span className={`px-2 py-1 text-xs font-semibold rounded-full ${stat.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                     {stat.isActive ? '활성' : '비활성'}
                   </span>
-                </td>
-                <td className="p-4 text-right text-slate-600 font-mono">{stat.sessionCount} 회</td>
-                <td className="p-4 text-right text-slate-800 font-semibold font-mono">₩{stat.totalFee.toLocaleString()}</td>
-              </tr>
+                </div>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-slate-600">수업 횟수: <span className="font-mono">{stat.sessionCount} 회</span></span>
+                  <span className="text-slate-800 font-semibold font-mono">₩{stat.totalFee.toLocaleString()}</span>
+                </div>
+              </div>
             ))}
-             {trainerStats.length === 0 && (
-              <tr>
-                  <td colSpan={4} className="text-center py-10 px-6 text-slate-500">
-                      해당 기간/지점의 정산 내역이 없습니다.
-                  </td>
-              </tr>
+            {trainerStats.length === 0 && (
+              <div className="text-center py-10 px-6 text-slate-500">
+                해당 기간/지점의 정산 내역이 없습니다.
+              </div>
             )}
-          </tbody>
-        </table>
-      </div>
+          </div>
+        </div>
 
-      <div className="mt-8">
-        <h2 className="text-2xl font-bold text-slate-800 mb-4">전체 스케줄 현황</h2>
-        <ScheduleCalendar 
-            sessions={sessionsForBranch} 
-            allSessions={allSessions}
-            trainers={branchFilteredTrainers} 
-            programs={programsForBranch}
-            members={members}
-            onSessionEventClick={onSessionEventClick}
-            currentUser={currentUser}
-        />
-      </div>
+        <div className="mt-8">
+          <h2 className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold text-slate-800 mb-4`}>전체 스케줄 현황</h2>
+          <ScheduleCalendar 
+              sessions={sessionsForBranch} 
+              allSessions={allSessions}
+              trainers={branchFilteredTrainers} 
+              programs={programsForBranch}
+              members={members}
+              onSessionEventClick={onSessionEventClick}
+              currentUser={currentUser}
+          />
+        </div>
+      </Container>
     </div>
   );
 };
