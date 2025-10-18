@@ -1326,6 +1326,9 @@ const App: React.FC = () => {
     
   const handleSessionClick = (programId: string, sessionNumber: number, session: Session | null) => {
     if (session) {
+      // 기존 세션을 클릭한 경우 sessionToEdit 설정
+      setSessionToEdit(session);
+      
       // 완료된 세션을 관리자가 클릭하면 수업료 수정 모달 열기
       if (session.status === SessionStatus.Completed && currentUser?.role === 'admin') {
         setSessionToEditFee(session);
@@ -1342,6 +1345,7 @@ const App: React.FC = () => {
   };
 
   const handleCalendarSessionClick = (session: Session) => {
+    setSessionToEdit(session);
     setCompletionData(session);
     setCompletionModalOpen(true);
   };
