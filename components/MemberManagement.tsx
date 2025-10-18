@@ -137,7 +137,7 @@ export const MemberManagement: React.FC<MemberManagementProps> = ({ members, pro
   // 권한이 없는 경우 메시지 표시
   if (!canManageMembers) {
     return (
-      <div className="flex-1 p-4 sm:p-6 bg-slate-100 overflow-y-auto">
+      <div className="flex-1 p-4 sm:p-6 bg-white overflow-y-auto">
         <CenteredContainer>
           <Card className="text-center py-16">
             <CardContent>
@@ -154,7 +154,7 @@ export const MemberManagement: React.FC<MemberManagementProps> = ({ members, pro
   }
 
   return (
-    <div className="flex-1 p-4 sm:p-6 bg-slate-100 overflow-y-auto">
+    <div className="flex-1 p-4 sm:p-6 bg-white overflow-y-auto">
       <CenteredContainer>
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-4">
           <div>

@@ -28,7 +28,7 @@ export const TrainerManagement: React.FC<TrainerManagementProps> = ({ trainers, 
   };
 
   return (
-    <div className="flex-1 p-4 sm:p-6 bg-slate-100 overflow-y-auto">
+    <div className="flex-1 p-4 sm:p-6 bg-white overflow-y-auto">
       <CenteredContainer>
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-4">
           <div>

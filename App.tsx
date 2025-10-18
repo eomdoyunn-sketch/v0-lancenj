@@ -933,6 +933,13 @@ const App: React.FC = () => {
   };
   const handleTrainerBranchChange = (branchId: string, field: string, value: any) => {
       if (!trainerFormState) return;
+      
+      // 강사가 본인 정보를 수정할 때 지점 선택 변경 방지
+      if (currentUser?.role === 'trainer' && trainerToEdit?.id === currentUser.trainerProfileId && field === 'selected') {
+          console.log('강사는 본인의 지점을 변경할 수 없습니다.');
+          return;
+      }
+      
       const newBranches = {
           ...trainerFormState.branches,
           [branchId]: {
@@ -2750,6 +2757,9 @@ const App: React.FC = () => {
                 </div>
                 <div>
                     <label className="block text-sm font-medium text-slate-700">소속 지점 및 수업료</label>
+                    {currentUser?.role === 'trainer' && trainerToEdit?.id === currentUser.trainerProfileId && (
+                      <p className="mt-1 text-xs text-slate-500">강사는 본인의 지점을 변경할 수 없습니다.</p>
+                    )}
                     <div className="mt-2 space-y-3 p-3 border rounded-md max-h-48 overflow-y-auto">
                         {branches.map(branch => {
                             const branchState = trainerFormState.branches[branch.id];
@@ -2758,8 +2768,18 @@ const App: React.FC = () => {
                                     <input type="checkbox" name="branchIds" value={branch.id} 
                                       checked={branchState.selected} 
                                       onChange={(e) => handleTrainerBranchChange(branch.id, 'selected', e.target.checked)}
-                                      className="rounded h-4 w-4 text-blue-600 focus:ring-blue-500"/>
-                                    <span>{branch.name}</span>
+                                      disabled={currentUser?.role === 'trainer' && trainerToEdit?.id === currentUser.trainerProfileId}
+                                      className={`rounded h-4 w-4 text-blue-600 focus:ring-blue-500 ${
+                                        currentUser?.role === 'trainer' && trainerToEdit?.id === currentUser.trainerProfileId 
+                                          ? 'opacity-50 cursor-not-allowed' 
+                                          : ''
+                                      }`}/>
+                                    <span className={currentUser?.role === 'trainer' && trainerToEdit?.id === currentUser.trainerProfileId ? 'text-slate-500' : ''}>
+                                      {branch.name}
+                                      {currentUser?.role === 'trainer' && trainerToEdit?.id === currentUser.trainerProfileId && branchState.selected && (
+                                        <span className="ml-2 text-xs text-slate-400">(고정)</span>
+                                      )}
+                                    </span>
                                 </label>
                                 {branchState.selected && <div className="flex items-center gap-1">
                                     <input 
@@ -2940,8 +2960,22 @@ const App: React.FC = () => {
         </div>
       )}
       
-      {/* 설정 모달 */}
-      {isSettingsModalOpen && (
+      {/* 설정 모달 - 강사인 경우 강사 정보 수정 모달로 직접 연결 */}
+      {isSettingsModalOpen && currentUser?.role === 'trainer' && currentUser.trainerProfileId && (
+        (() => {
+          const trainer = trainers.find(t => t.id === currentUser.trainerProfileId);
+          if (trainer) {
+            // 강사인 경우 설정 모달을 닫고 강사 정보 수정 모달을 직접 열기
+            setSettingsModalOpen(false);
+            handleOpenTrainerModal(trainer);
+            return null;
+          }
+          return null;
+        })()
+      )}
+
+      {/* 설정 모달 - 관리자/매니저인 경우에만 표시 */}
+      {isSettingsModalOpen && currentUser?.role !== 'trainer' && (
         <Modal isOpen={isSettingsModalOpen} onClose={() => setSettingsModalOpen(false)} title="설정">
           <div className="space-y-6">
             {/* 사용자 정보 */}
@@ -3038,66 +3072,176 @@ const App: React.FC = () => {
                   
                   <div>
                     <label className="text-sm font-medium text-slate-600">강사 색상</label>
-                    <div className="flex items-center gap-2 mt-1">
-                      <div 
-                        className="w-6 h-6 rounded-full border-2 border-slate-300" 
-                        style={{ backgroundColor: trainers.find(t => t.id === currentUser.trainerProfileId)?.color }}
-                      ></div>
-                      <span className="text-sm text-slate-600">
-                        {trainers.find(t => t.id === currentUser.trainerProfileId)?.color}
-                      </span>
+                    <div className="mt-2">
+                      <div className="flex items-center gap-2 mb-3">
+                        <div 
+                          className="w-8 h-8 rounded-full border-2 border-slate-300" 
+                          style={{ backgroundColor: trainers.find(t => t.id === currentUser.trainerProfileId)?.color }}
+                        ></div>
+                        <span className="text-sm text-slate-600">
+                          {trainers.find(t => t.id === currentUser.trainerProfileId)?.color}
+                        </span>
+                      </div>
+                      
+                      {/* 색상 선택 그리드 */}
+                      <div className="grid grid-cols-10 gap-2">
+                        {availableColors.map(color => {
+                          const isUsed = trainers.some(t => t.id !== currentUser.trainerProfileId && t.color === color);
+                          const isSelected = trainers.find(t => t.id === currentUser.trainerProfileId)?.color === color;
+                          
+                          return (
+                            <button
+                              key={color}
+                              type="button"
+                              onClick={async () => {
+                                if (isUsed) {
+                                  alert('이미 사용 중인 색상입니다.');
+                                  return;
+                                }
+                                
+                                const trainer = trainers.find(t => t.id === currentUser.trainerProfileId);
+                                if (trainer) {
+                                  const success = await DataManager.updateTrainer(trainer.id, { color });
+                                  if (success) {
+                                    setTrainers(trainers.map(t => t.id === trainer.id ? { ...t, color } : t));
+                                    alert('색상이 변경되었습니다.');
+                                  } else {
+                                    alert('색상 변경에 실패했습니다.');
+                                  }
+                                }
+                              }}
+                              disabled={isUsed}
+                              className={`w-8 h-8 rounded-full ${color} relative ring-2 ring-offset-2 transition-all ${
+                                isSelected ? 'ring-blue-500' : 
+                                isUsed ? 'ring-red-300 opacity-50 cursor-not-allowed' : 
+                                'ring-transparent hover:ring-gray-300'
+                              }`}
+                              title={isUsed ? '이미 사용 중인 색상입니다' : ''}
+                            >
+                              {isSelected && <CheckCircleIcon className="w-5 h-5 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-white" />}
+                              {isUsed && <div className="absolute inset-0 bg-black bg-opacity-30 rounded-full flex items-center justify-center">
+                                <span className="text-white text-xs font-bold">×</span>
+                              </div>}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <p className="text-xs text-slate-500 mt-2">사용 중인 색상은 선택할 수 없습니다.</p>
                     </div>
-                    <p className="text-xs text-slate-500 mt-1">
-                      색상 변경은 프로필 수정에서 가능합니다.
-                    </p>
                   </div>
                   
                   {/* 소속 지점 및 수업료 */}
                   <div>
                     <label className="text-sm font-medium text-slate-600">소속 지점 및 수업료</label>
-                    <div className="mt-2 space-y-2">
+                    <div className="mt-2 space-y-3">
                       {branches.map(branch => {
                         const trainer = trainers.find(t => t.id === currentUser.trainerProfileId);
                         const isAssigned = trainer?.branchIds.includes(branch.id);
                         const branchRate = trainer?.branchRates[branch.id];
                         
+                        if (!isAssigned) return null;
+                        
                         return (
-                          <div 
-                            key={branch.id}
-                            className={`p-3 border rounded-lg cursor-pointer transition-colors ${
-                              isAssigned 
-                                ? 'bg-blue-50 border-blue-200' 
-                                : 'bg-slate-50 border-slate-200 hover:bg-slate-100'
-                            }`}
-                            onClick={() => {
-                              // 지점 할당/해제 로직
-                              console.log('지점 토글:', branch.name);
-                              alert('지점 할당/해제 기능은 구현 중입니다.');
-                            }}
-                          >
+                          <div key={branch.id} className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-3">
-                                <input 
-                                  type="checkbox" 
-                                  checked={isAssigned}
-                                  onChange={() => {}} // 클릭 이벤트는 부모 div에서 처리
-                                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                                />
                                 <span className="font-medium text-slate-800">{branch.name}</span>
+                                <span className="text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded-full">소속 지점</span>
                               </div>
-                              {isAssigned && branchRate && (
+                            </div>
+                            
+                            {/* 수업료 설정 */}
+                            <div className="mt-3">
+                              <label className="block text-sm font-medium text-slate-600 mb-2">수업료 설정</label>
+                              <div className="flex items-center gap-3">
                                 <div className="flex items-center gap-2">
                                   <input 
-                                    type="number" 
-                                    value={branchRate.type === 'percentage' ? branchRate.value * 100 : branchRate.value}
-                                    className="w-20 px-2 py-1 text-sm border border-slate-300 rounded"
-                                    readOnly
+                                    type="radio" 
+                                    name={`rateType_${branch.id}`}
+                                    value="percentage"
+                                    checked={branchRate?.type === 'percentage'}
+                                    onChange={async (e) => {
+                                      if (e.target.checked) {
+                                        const newRate = { type: 'percentage', value: 0.5 }; // 기본 50%
+                                        const success = await DataManager.updateTrainer(trainer.id, {
+                                          branchRates: { ...trainer.branchRates, [branch.id]: newRate }
+                                        });
+                                        if (success) {
+                                          setTrainers(trainers.map(t => t.id === trainer.id ? {
+                                            ...t,
+                                            branchRates: { ...t.branchRates, [branch.id]: newRate }
+                                          } : t));
+                                        }
+                                      }
+                                    }}
+                                    className="w-4 h-4 text-blue-600"
                                   />
-                                  <span className="text-sm text-slate-600">
-                                    {branchRate.type === 'percentage' ? '%' : '원'}
-                                  </span>
+                                  <span className="text-sm text-slate-600">비율 (%)</span>
                                 </div>
-                              )}
+                                <div className="flex items-center gap-2">
+                                  <input 
+                                    type="radio" 
+                                    name={`rateType_${branch.id}`}
+                                    value="fixed"
+                                    checked={branchRate?.type === 'fixed'}
+                                    onChange={async (e) => {
+                                      if (e.target.checked) {
+                                        const newRate = { type: 'fixed', value: 25000 }; // 기본 25,000원
+                                        const success = await DataManager.updateTrainer(trainer.id, {
+                                          branchRates: { ...trainer.branchRates, [branch.id]: newRate }
+                                        });
+                                        if (success) {
+                                          setTrainers(trainers.map(t => t.id === trainer.id ? {
+                                            ...t,
+                                            branchRates: { ...t.branchRates, [branch.id]: newRate }
+                                          } : t));
+                                        }
+                                      }
+                                    }}
+                                    className="w-4 h-4 text-blue-600"
+                                  />
+                                  <span className="text-sm text-slate-600">고정금액 (원)</span>
+                                </div>
+                              </div>
+                              
+                              {/* 수업료 값 입력 */}
+                              <div className="mt-2">
+                                <input 
+                                  type="number" 
+                                  value={branchRate?.type === 'percentage' ? branchRate.value * 100 : branchRate?.value || 0}
+                                  onChange={async (e) => {
+                                    const value = Number(e.target.value);
+                                    if (branchRate?.type === 'percentage') {
+                                      const newRate = { type: 'percentage', value: value / 100 };
+                                      const success = await DataManager.updateTrainer(trainer.id, {
+                                        branchRates: { ...trainer.branchRates, [branch.id]: newRate }
+                                      });
+                                      if (success) {
+                                        setTrainers(trainers.map(t => t.id === trainer.id ? {
+                                          ...t,
+                                          branchRates: { ...t.branchRates, [branch.id]: newRate }
+                                        } : t));
+                                      }
+                                    } else {
+                                      const newRate = { type: 'fixed', value: value };
+                                      const success = await DataManager.updateTrainer(trainer.id, {
+                                        branchRates: { ...trainer.branchRates, [branch.id]: newRate }
+                                      });
+                                      if (success) {
+                                        setTrainers(trainers.map(t => t.id === trainer.id ? {
+                                          ...t,
+                                          branchRates: { ...t.branchRates, [branch.id]: newRate }
+                                        } : t));
+                                      }
+                                    }
+                                  }}
+                                  min="0"
+                                  className="w-32 px-3 py-2 text-sm border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                />
+                                <span className="ml-2 text-sm text-slate-600">
+                                  {branchRate?.type === 'percentage' ? '%' : '원'}
+                                </span>
+                              </div>
                             </div>
                           </div>
                         );

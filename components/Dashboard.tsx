@@ -165,7 +165,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   }
 
   return (
-    <div className="flex-1 p-4 sm:p-6 lg:p-8 bg-slate-100 overflow-y-auto">
+    <div className="flex-1 p-4 sm:p-6 lg:p-8 bg-white overflow-y-auto">
       <CenteredContainer>
         <div className="mb-6">
           <h2 className={`${isMobile ? 'text-xl' : 'text-2xl lg:text-3xl'} font-bold text-slate-800 mb-4`}>
@@ -225,13 +225,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 className={`px-3 py-2 rounded-md shadow-sm text-sm font-medium border ${
                   isAllTimeSelected() 
                     ? 'bg-blue-500 text-white border-blue-500' 
-                    : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
+                    : 'bg-white text-slate-700 border-slate-300 hover:bg-white'
                 }`}
               >
                 전체
               </button>
-              <button onClick={setThisMonth} className="px-3 py-2 bg-white text-slate-700 rounded-md shadow-sm text-sm font-medium hover:bg-slate-100 border">이번 달</button>
-              <button onClick={setLastMonth} className="px-3 py-2 bg-white text-slate-700 rounded-md shadow-sm text-sm font-medium hover:bg-slate-100 border">지난 달</button>
+              <button onClick={setThisMonth} className="px-3 py-2 bg-white text-slate-700 rounded-md shadow-sm text-sm font-medium hover:bg-white border">이번 달</button>
+              <button onClick={setLastMonth} className="px-3 py-2 bg-white text-slate-700 rounded-md shadow-sm text-sm font-medium hover:bg-white border">지난 달</button>
             </div>
           </div>
         </div>
