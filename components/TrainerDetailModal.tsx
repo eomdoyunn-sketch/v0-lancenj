@@ -197,7 +197,7 @@ export const TrainerDetailModal: React.FC<TrainerDetailModalProps> = ({ isOpen, 
     const title = `${periodTitle} ${trainer.name} 강사 정산 내역`;
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title={title} maxWidth="max-w-4xl">
+        <Modal isOpen={isOpen} onClose={onClose} title={title} maxWidth="max-w-7xl">
             <div className="space-y-4">
                 {/* 날짜 필터와 퀵 필터 */}
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 bg-slate-50 rounded-lg">

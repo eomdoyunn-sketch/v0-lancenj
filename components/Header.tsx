@@ -1,16 +1,18 @@
 import React, { useState } from 'react';
-import { User, View } from '../types';
-import { BarChartIcon, DumbbellIcon, UsersIcon, FileTextIcon, SettingsIcon, LogOutIcon, MenuIcon, XIcon } from './Icons';
+import { User, View, Branch } from '../types';
+import { BarChartIcon, DumbbellIcon, UsersIcon, FileTextIcon, SettingsIcon, LogOutIcon, MenuIcon, XIcon, UserIcon } from './Icons';
 import { useResponsive } from '../hooks/useResponsive';
 
 interface HeaderProps {
   currentView: View;
   setCurrentView: (view: View) => void;
   currentUser: User | null;
+  branches: Branch[];
   onLogout: () => void;
+  onOpenSettings: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ currentView, setCurrentView, currentUser, onLogout }) => {
+export const Header: React.FC<HeaderProps> = ({ currentView, setCurrentView, currentUser, branches, onLogout, onOpenSettings }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { isMobile } = useResponsive();
   
@@ -62,8 +64,23 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setCurrentView, cur
         
         <div className="flex items-center gap-4">
           <div className="text-right">
-            <p className="text-sm font-semibold text-slate-800">{currentUser?.name}</p>
-            <p className="text-xs text-slate-500">{currentUser?.email}</p>
+            <button 
+              onClick={onOpenSettings}
+              className="text-sm font-semibold text-slate-800 hover:text-blue-600 hover:bg-blue-50 px-2 py-1 rounded-md transition-all duration-200 cursor-pointer"
+              title="설정 열기"
+            >
+              {currentUser?.name}
+            </button>
+            <p className="text-xs text-slate-500">
+              {currentUser?.assignedBranchIds && currentUser.assignedBranchIds.length > 0 
+                ? currentUser.assignedBranchIds.map(branchId => {
+                    const branch = branches.find(b => b.id === branchId);
+                    return branch ? branch.name : branchId;
+                  }).join(', ')
+                : currentUser?.role === 'admin' ? '관리자' : 
+                  currentUser?.role === 'manager' ? '매니저' : 
+                  currentUser?.role === 'trainer' ? '강사' : '사용자'}
+            </p>
           </div>
           <button 
             onClick={onLogout} 
@@ -84,8 +101,23 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setCurrentView, cur
           
           <div className="flex items-center gap-2">
             <div className="text-right">
-              <p className="text-sm font-semibold text-slate-800">{currentUser?.name}</p>
-              <p className="text-xs text-slate-500">{currentUser?.email}</p>
+              <button 
+                onClick={onOpenSettings}
+                className="text-sm font-semibold text-slate-800 hover:text-blue-600 hover:bg-blue-50 px-2 py-1 rounded-md transition-all duration-200 cursor-pointer"
+                title="설정 열기"
+              >
+                {currentUser?.name}
+              </button>
+              <p className="text-xs text-slate-500">
+                {currentUser?.assignedBranchIds && currentUser.assignedBranchIds.length > 0 
+                  ? currentUser.assignedBranchIds.map(branchId => {
+                      const branch = branches.find(b => b.id === branchId);
+                      return branch ? branch.name : branchId;
+                    }).join(', ')
+                  : currentUser?.role === 'admin' ? '관리자' : 
+                    currentUser?.role === 'manager' ? '매니저' : 
+                    currentUser?.role === 'trainer' ? '강사' : '사용자'}
+              </p>
             </div>
             <button 
               onClick={toggleMobileMenu}

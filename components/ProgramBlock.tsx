@@ -3,6 +3,7 @@ import { useDroppable, useDraggable } from '@dnd-kit/core';
 import { Member, MemberProgram, Session, Trainer, User } from '../types';
 import { SessionTracker } from './SessionCard';
 import { EditIcon, TrashIcon, UserIcon, CopyIcon } from './Icons';
+import { TableCell } from './ui/table';
 
 const DraggableTrainer: React.FC<{ trainer: Trainer; programId: string }> = ({ trainer, programId }) => {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
@@ -98,35 +99,35 @@ export const ProgramRow: React.FC<ProgramRowProps> = ({ program, members, sessio
 
   return (
     <tr ref={setNodeRef} className={`border-b border-slate-200 transition-colors ${isOver ? 'bg-blue-100' : 'bg-white hover:bg-slate-50'}`}>
-      <td className="px-4 py-3 text-sm font-medium text-slate-900">
+      <TableCell className="px-4 py-3 text-sm font-medium text-slate-900 text-left">
         <div className="group relative">
           <span className="truncate">{memberNames}</span>
           <div className="absolute bottom-full mb-2 w-max px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-pre-wrap">
             {memberTooltip}
           </div>
         </div>
-      </td>
-      <td className="px-4 py-3 text-sm text-slate-600">{program.programName}</td>
-      <td className="px-4 py-3 text-sm text-slate-600">{program.registrationDate}</td>
-       <td className="px-4 py-3 text-sm text-center">
+      </TableCell>
+      <TableCell className="px-4 py-3 text-sm text-slate-600 text-left">{program.programName}</TableCell>
+      <TableCell className="px-4 py-3 text-sm text-slate-600 text-left">{program.registrationDate}</TableCell>
+      <TableCell className="px-4 py-3 text-sm text-center">
         {assignedTrainer ? (
           <DraggableTrainer trainer={assignedTrainer} programId={program.id} />
         ) : (
           <span className="text-slate-400 text-xs italic">미배정</span>
         )}
-      </td>
-      <td className="px-4 py-3 text-sm text-center font-mono text-slate-600">{program.totalSessions}</td>
-      <td className="px-4 py-3 text-sm text-center font-mono text-blue-600 font-semibold">{remainingSessions}</td>
-      <td className="px-4 py-3 text-sm text-center font-mono text-slate-600">
+      </TableCell>
+      <TableCell className="px-4 py-3 text-sm text-center font-mono text-slate-600">{program.totalSessions}</TableCell>
+      <TableCell className="px-4 py-3 text-sm text-center font-mono text-blue-600 font-semibold">{remainingSessions}</TableCell>
+      <TableCell className="px-4 py-3 text-sm text-center font-mono text-slate-600">
         {daysSinceLastSession !== null ? `${daysSinceLastSession}일 전` : '-'}
-      </td>
-      <td className="px-4 py-3 text-sm text-right font-mono text-slate-600">{program.unitPrice.toLocaleString()}원</td>
-      <td className="px-4 py-3">
+      </TableCell>
+      <TableCell className="px-4 py-3 text-sm text-right font-mono text-slate-600">{program.unitPrice.toLocaleString()}원</TableCell>
+      <TableCell className="px-4 py-3 text-left">
         <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusChip(program.status)}`}>
           {program.status}
         </span>
-      </td>
-      <td className="p-3" style={{ minWidth: '300px' }}>
+      </TableCell>
+      <TableCell className="p-3 min-w-[200px] sm:min-w-[250px] lg:min-w-[300px] text-left">
         <SessionTracker
           programId={program.id}
           totalSessions={program.totalSessions}
@@ -137,8 +138,8 @@ export const ProgramRow: React.FC<ProgramRowProps> = ({ program, members, sessio
           onShowTooltip={onShowTooltip}
           onHideTooltip={onHideTooltip}
         />
-      </td>
-      <td className="px-4 py-3">
+      </TableCell>
+      <TableCell className="px-4 py-3 text-center">
         <div className="flex items-center justify-center gap-2">
          {canPerformAction() && (
             <>
@@ -155,7 +156,7 @@ export const ProgramRow: React.FC<ProgramRowProps> = ({ program, members, sessio
             </>
           )}
         </div>
-      </td>
+      </TableCell>
     </tr>
   );
 };

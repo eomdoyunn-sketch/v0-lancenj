@@ -1,4 +1,3 @@
-
 import { createClient } from '@supabase/supabase-js';
 import { Branch, Member, MemberProgram, ProgramPreset, Session, Trainer, User, AuditLog } from '../types';
 
@@ -329,15 +328,29 @@ export interface Database {
   }
 }
 
-
-// 강제로 올바른 URL 사용
+// Supabase 설정 (MCP에서 가져온 실제 값)
 const supabaseUrl = 'https://eurpkgbmeziosjqkhmqv.supabase.co';
 const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV1cnBrZ2JtZXppb3NqcWtobXF2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTcxODMwODEsImV4cCI6MjA3Mjc1OTA4MX0.0TX158-7MPgkKfhEasIs39cyfWhVGTbsRnLjhEp_ORQ';
 
-
+// 환경변수 검증
 if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error("Supabase URL and Anon Key are required.");
+  throw new Error(
+    "Supabase 환경변수가 설정되지 않았습니다. " +
+    "VITE_SUPABASE_URL과 VITE_SUPABASE_ANON_KEY를 .env 파일에 설정해주세요."
+  );
 }
 
-
-export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey);
+// Supabase 클라이언트 생성 (성능 최적화 옵션 포함)
+export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true,
+    flowType: 'pkce'
+  },
+  realtime: {
+    params: {
+      eventsPerSecond: 10
+    }
+  }
+});

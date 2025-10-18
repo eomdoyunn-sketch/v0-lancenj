@@ -186,61 +186,68 @@ export const TrainerSettlementModal: React.FC<TrainerSettlementModalProps> = ({
   const branchMap = new Map(allBranches.map(b => [b.id, b.name]));
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-hidden">
-        <div className="flex items-center justify-between p-6 border-b border-slate-200">
-          <div>
-            <h2 className="text-2xl font-bold text-slate-800">{trainer.name} 강사 정산 내역</h2>
-            <p className="text-slate-600 mt-1">상세 정산 내역 및 다운로드</p>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 lg:p-4">
+      <div className="bg-white rounded-xl shadow-2xl w-full h-full lg:h-auto lg:min-w-[1200px] lg:max-w-[98vw] xl:max-w-[95vw] 2xl:max-w-[90vw] lg:max-h-[90vh] overflow-hidden">
+        <div className="flex items-center justify-between p-4 lg:p-6 border-b border-slate-200">
+          <div className="flex-1 min-w-0">
+            <h2 className="text-lg lg:text-2xl font-bold text-slate-800 truncate">{trainer.name} 강사 정산 내역</h2>
+            <p className="text-sm lg:text-base text-slate-600 mt-1">상세 정산 내역 및 다운로드</p>
           </div>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 text-2xl font-bold"
+            className="text-slate-400 hover:text-slate-600 text-2xl font-bold ml-4 flex-shrink-0"
           >
             ×
           </button>
         </div>
 
-        <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
+        <div className="p-3 lg:p-6 overflow-y-auto max-h-[calc(100vh-120px)] lg:max-h-[calc(90vh-140px)]">
           {/* 기간 설정 및 필터 */}
-          <div className="mb-6 p-4 bg-slate-50 rounded-lg">
-            <div className="flex flex-wrap items-center gap-4 mb-4">
-              <div className="flex items-center gap-2">
-                <label className="text-sm font-medium text-slate-700">기간:</label>
-                <input 
-                  type="date" 
-                  value={startDate} 
-                  onChange={e => setStartDate(e.target.value)}
-                  className="p-2 border rounded-md text-sm"
-                />
-                <span>~</span>
-                <input 
-                  type="date" 
-                  value={endDate} 
-                  onChange={e => setEndDate(e.target.value)}
-                  className="p-2 border rounded-md text-sm"
-                />
-              </div>
-              
-              <div className="flex items-center gap-2">
-                <button onClick={setAllTime} className="px-3 py-1 bg-blue-100 text-blue-700 rounded-md text-sm hover:bg-blue-200">
-                  전체
-                </button>
-                <button onClick={setThisMonth} className="px-3 py-1 bg-blue-100 text-blue-700 rounded-md text-sm hover:bg-blue-200">
-                  이번 달
-                </button>
-                <button onClick={setLastMonth} className="px-3 py-1 bg-blue-100 text-blue-700 rounded-md text-sm hover:bg-blue-200">
-                  지난 달
-                </button>
+          <div className="mb-4 lg:mb-6 p-3 lg:p-4 bg-slate-50 rounded-lg">
+            <div className="space-y-4">
+              {/* 날짜 필터 */}
+              <div className="flex flex-col sm:flex-row gap-3">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+                  <label className="text-sm font-medium text-slate-700 whitespace-nowrap">기간:</label>
+                  <div className="flex flex-col sm:flex-row items-center gap-2">
+                    <input 
+                      type="date" 
+                      value={startDate} 
+                      onChange={e => setStartDate(e.target.value)}
+                      className="w-full sm:w-auto p-2 border rounded-md text-sm min-h-[44px]"
+                    />
+                    <span className="text-slate-500">~</span>
+                    <input 
+                      type="date" 
+                      value={endDate} 
+                      onChange={e => setEndDate(e.target.value)}
+                      className="w-full sm:w-auto p-2 border rounded-md text-sm min-h-[44px]"
+                    />
+                  </div>
+                </div>
+                
+                {/* 빠른 선택 버튼 */}
+                <div className="flex flex-wrap gap-2">
+                  <button onClick={setAllTime} className="px-3 py-2 bg-blue-100 text-blue-700 rounded-md text-sm hover:bg-blue-200 min-h-[44px] touch-manipulation">
+                    전체
+                  </button>
+                  <button onClick={setThisMonth} className="px-3 py-2 bg-blue-100 text-blue-700 rounded-md text-sm hover:bg-blue-200 min-h-[44px] touch-manipulation">
+                    이번 달
+                  </button>
+                  <button onClick={setLastMonth} className="px-3 py-2 bg-blue-100 text-blue-700 rounded-md text-sm hover:bg-blue-200 min-h-[44px] touch-manipulation">
+                    지난 달
+                  </button>
+                </div>
               </div>
 
+              {/* 지점 필터 */}
               {currentUser?.role === 'admin' && (
-                <div className="flex items-center gap-2">
-                  <label className="text-sm font-medium text-slate-700">지점:</label>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+                  <label className="text-sm font-medium text-slate-700 whitespace-nowrap">지점:</label>
                   <select 
                     value={selectedBranchId} 
                     onChange={e => setSelectedBranchId(e.target.value)}
-                    className="p-2 border rounded-md text-sm"
+                    className="w-full sm:w-auto p-2 border rounded-md text-sm min-h-[44px]"
                   >
                     <option value="">모든 지점</option>
                     {allBranches.map(branch => (
@@ -252,28 +259,28 @@ export const TrainerSettlementModal: React.FC<TrainerSettlementModalProps> = ({
             </div>
 
             {/* 요약 정보 */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-white p-4 rounded-lg border">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-4 mt-4">
+              <div className="bg-white p-3 lg:p-4 rounded-lg border">
                 <h3 className="text-slate-500 text-sm font-medium">총 수업 횟수</h3>
-                <p className="text-2xl font-bold text-blue-600 mt-1">{settlementData.sessionCount}회</p>
+                <p className="text-xl lg:text-2xl font-bold text-blue-600 mt-1">{settlementData.sessionCount}회</p>
               </div>
-              <div className="bg-white p-4 rounded-lg border">
+              <div className="bg-white p-3 lg:p-4 rounded-lg border">
                 <h3 className="text-slate-500 text-sm font-medium">총 강사료</h3>
-                <p className="text-2xl font-bold text-green-600 mt-1">₩{settlementData.totalFee.toLocaleString()}</p>
+                <p className="text-xl lg:text-2xl font-bold text-green-600 mt-1">₩{settlementData.totalFee.toLocaleString()}</p>
               </div>
-              <div className="bg-white p-4 rounded-lg border">
+              <div className="bg-white p-3 lg:p-4 rounded-lg border sm:col-span-2 lg:col-span-1">
                 <h3 className="text-slate-500 text-sm font-medium">총 수업료</h3>
-                <p className="text-2xl font-bold text-purple-600 mt-1">₩{settlementData.totalRevenue.toLocaleString()}</p>
+                <p className="text-xl lg:text-2xl font-bold text-purple-600 mt-1">₩{settlementData.totalRevenue.toLocaleString()}</p>
               </div>
             </div>
           </div>
 
           {/* 다운로드 버튼 */}
-          <div className="mb-4 flex justify-end">
+          <div className="mb-4 flex justify-center lg:justify-end">
             <button
               onClick={downloadSettlement}
               disabled={settlementData.sessions.length === 0}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center gap-2"
+              className="w-full sm:w-auto px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-2 min-h-[44px] touch-manipulation"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -282,20 +289,20 @@ export const TrainerSettlementModal: React.FC<TrainerSettlementModalProps> = ({
             </button>
           </div>
 
-          {/* 상세 내역 테이블 */}
-          <div className="bg-white rounded-lg border overflow-hidden">
-            <div className="max-h-[400px] overflow-y-auto">
-              <table className="w-full text-left">
+          {/* 상세 내역 - 데스크톱 테이블 뷰 */}
+          <div className="hidden lg:block bg-white rounded-lg border overflow-hidden">
+            <div className="max-h-[400px] overflow-y-auto overflow-x-hidden">
+              <table className="w-full text-left table-fixed">
                 <thead className="bg-slate-50 sticky top-0">
                   <tr>
-                    <th className="p-3 font-semibold text-slate-600 text-sm">수업일시</th>
-                    <th className="p-3 font-semibold text-slate-600 text-sm">프로그램명</th>
-                    <th className="p-3 font-semibold text-slate-600 text-sm">참석 회원</th>
-                    <th className="p-3 font-semibold text-slate-600 text-sm">지점</th>
-                    <th className="p-3 font-semibold text-slate-600 text-sm text-right">단가</th>
-                    <th className="p-3 font-semibold text-slate-600 text-sm text-right">강사료</th>
-                    <th className="p-3 font-semibold text-slate-600 text-sm text-right">수업료</th>
-                    <th className="p-3 font-semibold text-slate-600 text-sm text-center">요율</th>
+                    <th className="p-3 font-semibold text-slate-600 text-sm w-[18%]">수업일시</th>
+                    <th className="p-3 font-semibold text-slate-600 text-sm w-[18%]">프로그램명</th>
+                    <th className="p-3 font-semibold text-slate-600 text-sm w-[22%]">참석 회원</th>
+                    <th className="p-3 font-semibold text-slate-600 text-sm w-[8%]">지점</th>
+                    <th className="p-3 font-semibold text-slate-600 text-sm text-right w-[10%]">단가</th>
+                    <th className="p-3 font-semibold text-slate-600 text-sm text-right w-[10%]">강사료</th>
+                    <th className="p-3 font-semibold text-slate-600 text-sm text-right w-[10%]">수업료</th>
+                    <th className="p-3 font-semibold text-slate-600 text-sm text-center w-[4%]">요율</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
@@ -307,28 +314,36 @@ export const TrainerSettlementModal: React.FC<TrainerSettlementModalProps> = ({
                     
                     return (
                       <tr key={session.id} className="hover:bg-slate-50">
-                        <td className="p-3 text-sm text-slate-800">
-                          {session.date} {session.startTime}
+                        <td className="p-3 text-sm text-slate-800 w-[18%]">
+                          <div className="truncate" title={`${session.date} ${session.startTime}`}>
+                            {session.date} {session.startTime}
+                          </div>
                         </td>
-                        <td className="p-3 text-sm text-slate-800">
-                          {program?.programName || '-'}
+                        <td className="p-3 text-sm text-slate-800 w-[18%]">
+                          <div className="truncate" title={program?.programName || '-'}>
+                            {program?.programName || '-'}
+                          </div>
                         </td>
-                        <td className="p-3 text-sm text-slate-600">
-                          {attendedMembers || '-'}
+                        <td className="p-3 text-sm text-slate-600 w-[22%]">
+                          <div className="truncate" title={attendedMembers || '-'}>
+                            {attendedMembers || '-'}
+                          </div>
                         </td>
-                        <td className="p-3 text-sm text-slate-600">
-                          {branchName || '-'}
+                        <td className="p-3 text-sm text-slate-600 w-[8%]">
+                          <div className="truncate" title={branchName || '-'}>
+                            {branchName || '-'}
+                          </div>
                         </td>
-                        <td className="p-3 text-sm text-slate-600 text-right font-mono">
+                        <td className="p-3 text-sm text-slate-600 text-right font-mono w-[10%]">
                           ₩{program?.unitPrice?.toLocaleString() || '0'}
                         </td>
-                        <td className="p-3 text-sm text-slate-800 text-right font-mono font-semibold">
+                        <td className="p-3 text-sm text-slate-800 text-right font-mono font-semibold w-[10%]">
                           ₩{session.trainerFee?.toLocaleString() || '0'}
                         </td>
-                        <td className="p-3 text-sm text-slate-600 text-right font-mono">
+                        <td className="p-3 text-sm text-slate-600 text-right font-mono w-[10%]">
                           ₩{session.sessionFee?.toLocaleString() || '0'}
                         </td>
-                        <td className="p-3 text-sm text-slate-600 text-center">
+                        <td className="p-3 text-sm text-slate-600 text-center w-[4%]">
                           <span className={`px-2 py-1 rounded-full text-xs ${
                             session.trainerRate === -1 
                               ? 'bg-purple-100 text-purple-800' 
@@ -350,6 +365,86 @@ export const TrainerSettlementModal: React.FC<TrainerSettlementModalProps> = ({
                 </tbody>
               </table>
             </div>
+          </div>
+
+          {/* 상세 내역 - 모바일 카드 뷰 */}
+          <div className="lg:hidden space-y-3">
+            {settlementData.sessions.length === 0 ? (
+              <div className="text-center py-10 px-6 text-slate-500 bg-white rounded-lg border">
+                해당 기간의 정산 내역이 없습니다.
+              </div>
+            ) : (
+              settlementData.sessions.map(session => {
+                const program = programMap.get(session.programId);
+                const attendedMembers = session.attendedMemberIds.map(id => memberMap.get(id)?.name || id).join(', ');
+                const branchName = program ? branchMap.get(program.branchId) || program.branchId : '';
+                const rateText = session.trainerRate === -1 ? '고정' : `${(session.trainerRate * 100).toFixed(1)}%`;
+                
+                return (
+                  <div key={session.id} className="bg-white p-4 rounded-lg border shadow-sm">
+                    <div className="space-y-3">
+                      {/* 수업일시 */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-slate-600">수업일시</span>
+                        <span className="text-sm text-slate-800 font-semibold">
+                          {session.date} {session.startTime}
+                        </span>
+                      </div>
+                      
+                      {/* 프로그램명 */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-slate-600">프로그램명</span>
+                        <span className="text-sm text-slate-800">{program?.programName || '-'}</span>
+                      </div>
+                      
+                      {/* 참석 회원 */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-slate-600">참석 회원</span>
+                        <span className="text-sm text-slate-800">{attendedMembers || '-'}</span>
+                      </div>
+                      
+                      {/* 지점 */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-slate-600">지점</span>
+                        <span className="text-sm text-slate-800">{branchName || '-'}</span>
+                      </div>
+                      
+                      {/* 금액 정보 */}
+                      <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-200">
+                        <div className="text-center">
+                          <span className="text-xs text-slate-500 block">단가</span>
+                          <span className="text-sm font-mono text-slate-600">
+                            ₩{program?.unitPrice?.toLocaleString() || '0'}
+                          </span>
+                        </div>
+                        <div className="text-center">
+                          <span className="text-xs text-slate-500 block">강사료</span>
+                          <span className="text-sm font-mono font-semibold text-green-600">
+                            ₩{session.trainerFee?.toLocaleString() || '0'}
+                          </span>
+                        </div>
+                        <div className="text-center">
+                          <span className="text-xs text-slate-500 block">수업료</span>
+                          <span className="text-sm font-mono text-slate-600">
+                            ₩{session.sessionFee?.toLocaleString() || '0'}
+                          </span>
+                        </div>
+                        <div className="text-center">
+                          <span className="text-xs text-slate-500 block">요율</span>
+                          <span className={`inline-block px-2 py-1 rounded-full text-xs ${
+                            session.trainerRate === -1 
+                              ? 'bg-purple-100 text-purple-800' 
+                              : 'bg-blue-100 text-blue-800'
+                          }`}>
+                            {rateText}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
       </div>

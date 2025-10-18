@@ -11,7 +11,6 @@ import { LogManagement } from './components/LogManagement';
 import { supabase } from './lib/supabaseClient';
 import { ManagementView } from './components/Management';
 import { Modal } from './components/Modal';
-import { Sidebar } from './components/Sidebar';
 import { DndContext, DragEndEvent } from '@dnd-kit/core';
 import { CheckCircleIcon, DumbbellIcon } from './components/Icons';
 import { TrainerDetailModal } from './components/TrainerDetailModal';
@@ -101,7 +100,7 @@ const App: React.FC = () => {
   
   const [isLoading, setIsLoading] = useState(true);
   
-  const [programFilter, setProgramFilter] = useState({status: '전체' as ProgramStatus | '전체', search: '', trainerId: '', branchId: ''});
+  const [programFilter, setProgramFilter] = useState({status: '유효' as ProgramStatus, search: '', trainerId: '', branchId: ''});
   const [memberFilter, setMemberFilter] = useState({ branchId: '' });
   const [dashboardFilter, setDashboardFilter] = useState({ branchId: '' });
 
@@ -135,6 +134,7 @@ const App: React.FC = () => {
   const [isTrainerDetailModalOpen, setTrainerDetailModalOpen] = useState(false);
   const [selectedTrainerForDetail, setSelectedTrainerForDetail] = useState<Trainer | null>(null);
   const [selectedTrainerSessions, setSelectedTrainerSessions] = useState<Session[]>([]);
+  const [isSettingsModalOpen, setSettingsModalOpen] = useState(false);
 
   const [isMemberDetailModalOpen, setMemberDetailModalOpen] = useState(false);
   const [selectedMemberForDetail, setSelectedMemberForDetail] = useState<Member | null>(null);
@@ -158,6 +158,9 @@ const App: React.FC = () => {
 
     setIsLoading(true);
     try {
+        console.log('=== 데이터 로딩 시작 ===');
+        console.log('현재 사용자:', currentUser);
+        
         // Load all data from Supabase
         const [branchesData, allMembers, allTrainers, allPrograms, sessionsData, allPresets, allUsers, allLogs] = await Promise.all([
             DataManager.getBranches(),
@@ -169,6 +172,16 @@ const App: React.FC = () => {
             DataManager.getUsers(),
             DataManager.getAuditLogs()
         ]);
+
+        console.log('=== 로드된 데이터 ===');
+        console.log('지점 데이터:', branchesData);
+        console.log('회원 데이터:', allMembers);
+        console.log('강사 데이터:', allTrainers);
+        console.log('프로그램 데이터:', allPrograms);
+        console.log('세션 데이터:', sessionsData);
+        console.log('프리셋 데이터:', allPresets);
+        console.log('사용자 데이터:', allUsers);
+        console.log('로그 데이터:', allLogs);
 
         // 모든 지점 데이터를 상태로 설정
         setAllBranches(branchesData);
@@ -196,6 +209,11 @@ const App: React.FC = () => {
             const filteredPresets = allPresets.filter(p => p.branchId && managerBranches.includes(p.branchId));
             const filteredLogs = allLogs.filter(l => l.branchId && managerBranches.includes(l.branchId));
 
+            console.log('=== 매니저 필터링된 데이터 ===');
+            console.log('필터링된 회원:', filteredMembers);
+            console.log('필터링된 프로그램:', filteredPrograms);
+            console.log('필터링된 세션:', filteredSessions);
+            
             setMembers(filteredMembers);
             setPrograms(filteredPrograms);
             setSessions(filteredSessions);
@@ -243,6 +261,11 @@ const App: React.FC = () => {
                     l.branchId && trainerBranches.includes(l.branchId)
                 );
 
+                console.log('=== 트레이너 필터링된 데이터 ===');
+                console.log('필터링된 회원:', filteredMembers);
+                console.log('필터링된 프로그램:', filteredPrograms);
+                console.log('필터링된 세션:', filteredSessions);
+                
                 setMembers(filteredMembers);
                 setPrograms(filteredPrograms);
                 setSessions(filteredSessions);
@@ -251,6 +274,11 @@ const App: React.FC = () => {
             }
         } else {
             // Admin sees all data
+            console.log('=== 관리자 - 모든 데이터 사용 ===');
+            console.log('전체 회원:', allMembers);
+            console.log('전체 프로그램:', allPrograms);
+            console.log('전체 세션:', sessionsData);
+            
             setBranches(branchesData);
             setMembers(allMembers);
             setPrograms(allPrograms);
@@ -875,6 +903,7 @@ const App: React.FC = () => {
 
   const handleOpenTrainerModal = (trainer: Trainer | null) => {
     setTrainerToEdit(trainer);
+    setTrainerModalOpen(true);
     const initialState: TrainerFormState = {
         id: trainer?.id,
         name: trainer?.name || '',
@@ -1137,6 +1166,8 @@ const App: React.FC = () => {
             ));
           }
           await addAuditLog('삭제', '강사', trainerToDelete.name, '강사 정보를 삭제했습니다.', trainerToDelete.branchIds[0]);
+          // 데이터 새로고침
+          fetchInitialData();
         }
     }
   };
@@ -1366,12 +1397,21 @@ const App: React.FC = () => {
       
       const updatedSession = await DataManager.updateSession(sessionToEdit.id, fullSessionData);
       if (updatedSession) {
-        // 데이터 새로고침
-        await fetchInitialData();
+        // 로컬 상태 즉시 업데이트
+        setSessions(sessions.map(s => s.id === sessionToEdit.id ? updatedSession : s));
+        setAllSessions(allSessions.map(s => s.id === sessionToEdit.id ? updatedSession : s));
+        
+        console.log('세션 수정 완료:', sessionToEdit.id);
+        
+        // 백그라운드에서 데이터 새로고침
+        fetchInitialData().catch(error => {
+          console.error('백그라운드 데이터 새로고침 실패:', error);
+        });
       }
     } else {
       // 새 세션 생성 시 - 각 참석 회원별로 개별 세션 생성
       const attendedMemberIds = sessionData.attendedMemberIds;
+      const newSessions = [];
       
       for (const memberId of attendedMemberIds) {
         const memberSessionData = {
@@ -1383,13 +1423,24 @@ const App: React.FC = () => {
         };
         
         const newSession = await DataManager.createSession(memberSessionData);
-        if (!newSession) {
+        if (newSession) {
+          newSessions.push(newSession);
+        } else {
           console.error(`Failed to create session for member ${memberId}`);
         }
       }
       
-      // 데이터 새로고침
-      await fetchInitialData();
+      // 로컬 상태 즉시 업데이트
+      if (newSessions.length > 0) {
+        setSessions([...sessions, ...newSessions]);
+        setAllSessions([...allSessions, ...newSessions]);
+        console.log('새 세션 생성 완료:', newSessions.length, '개');
+      }
+      
+      // 백그라운드에서 데이터 새로고침
+      fetchInitialData().catch(error => {
+        console.error('백그라운드 데이터 새로고침 실패:', error);
+      });
     }
     
     handleCloseBookingModal();
@@ -1407,10 +1458,15 @@ const App: React.FC = () => {
       };
       const updatedSession = await DataManager.updateSession(sessionToRevert.id, updatedSessionData);
       if (updatedSession) {
+        // 로컬 상태 즉시 업데이트
+        setSessions(sessions.map(s => s.id === sessionToRevert.id ? updatedSession : s));
+        setAllSessions(allSessions.map(s => s.id === sessionToRevert.id ? updatedSession : s));
+        
         await addAuditLog('수정', '프로그램', `세션 ${sessionToRevert.sessionNumber}회차`, `'${sessionToRevert.date} ${sessionToRevert.startTime}' 수업 완료를 취소했습니다.`);
         
-        // 데이터 새로고침
-        await fetchInitialData();
+        console.log('세션 완료 취소 완료:', sessionToRevert.id);
+      } else {
+        alert('세션 완료 취소에 실패했습니다.');
       }
     }
   };
@@ -1548,18 +1604,30 @@ const App: React.FC = () => {
           }
       }
       
+      // 로컬 상태 즉시 업데이트
+      setSessions(sessions.map(s => s.id === sessionToComplete.id ? updatedSession : s));
+      setAllSessions(allSessions.map(s => s.id === sessionToComplete.id ? updatedSession : s));
+      
+      // 프로그램 상태도 즉시 업데이트
+      if (!wasAlreadyCompleted && updatedProgram) {
+        setPrograms(programs.map(p => p.id === program.id ? updatedProgram : p));
+      }
+      
       // 감사 로그 추가
       console.log('감사 로그 추가 시작');
       await addAuditLog('수정', '프로그램', `세션 ${sessionToComplete.sessionNumber}회차`, `'${sessionToComplete.date} ${sessionToComplete.startTime}' 수업을 완료 처리했습니다.`);
       console.log('감사 로그 추가 완료');
       
-      // 데이터 새로고침
-      console.log('데이터 새로고침 시작...');
-      await fetchInitialData();
-      console.log('데이터 새로고침 완료');
-      
       alert('수업이 성공적으로 완료 처리되었습니다.');
       handleCloseCompletionModal();
+      
+      // 백그라운드에서 데이터 새로고침 (사용자 경험 개선)
+      console.log('백그라운드 데이터 새로고침 시작...');
+      fetchInitialData().then(() => {
+        console.log('백그라운드 데이터 새로고침 완료');
+      }).catch(error => {
+        console.error('백그라운드 데이터 새로고침 실패:', error);
+      });
     } catch (error) {
       console.error('수업 완료 처리 중 오류:', error);
       console.error('오류 스택:', error.stack);
@@ -1568,12 +1636,67 @@ const App: React.FC = () => {
   };
 
   const handleDeleteSession = async (sessionId: string) => {
-    const success = await DataManager.deleteSession(sessionId);
-    if (success) {
-      setSessions(sessions.filter(s => s.id !== sessionId));
-      handleCloseBookingModal();
-      handleCloseCompletionModal();
-      setSessionToEdit(null);
+    const sessionToDelete = sessions.find(s => s.id === sessionId);
+    if (!sessionToDelete) return;
+
+    if (window.confirm(`'${sessionToDelete.date} ${sessionToDelete.startTime}' 수업을 삭제하시겠습니까?`)) {
+      const success = await DataManager.deleteSession(sessionId);
+      if (success) {
+        // 로컬 상태 즉시 업데이트
+        setSessions(sessions.filter(s => s.id !== sessionId));
+        setAllSessions(allSessions.filter(s => s.id !== sessionId));
+        
+        // 감사 로그 추가
+        await addAuditLog('삭제', '프로그램', `세션 ${sessionToDelete.sessionNumber}회차`, `'${sessionToDelete.date} ${sessionToDelete.startTime}' 수업을 삭제했습니다.`);
+        
+        // 모달 닫기
+        handleCloseBookingModal();
+        handleCloseCompletionModal();
+        setSessionToEdit(null);
+        
+        console.log('세션 삭제 완료:', sessionId);
+      } else {
+        alert('세션 삭제에 실패했습니다.');
+      }
+    }
+  };
+
+  const handleRestoreTrainer = async (trainerId: string) => {
+    const trainerToRestore = trainers.find(t => t.id === trainerId);
+    if (!trainerToRestore) return;
+
+    if (window.confirm(`${trainerToRestore.name} 강사를 복원하시겠습니까?`)) {
+      const success = await DataManager.restoreTrainer(trainerId);
+      if (success) {
+        setTrainers(trainers.map(t => t.id === trainerId ? { ...t, isActive: true } : t));
+        await addAuditLog('수정', '강사', trainerToRestore.name, `강사 정보를 복원했습니다.`, trainerToRestore.branchIds[0]);
+        alert('강사가 성공적으로 복원되었습니다.');
+        // 데이터 새로고침
+        fetchInitialData();
+      } else {
+        alert('강사 복원에 실패했습니다.');
+      }
+    }
+  };
+
+  const handleUpdateTrainerBranches = async (trainerId: string, newBranchIds: string[]) => {
+    const trainer = trainers.find(t => t.id === trainerId);
+    if (!trainer) return;
+
+    try {
+      const success = await DataManager.updateTrainer(trainerId, { branchIds: newBranchIds });
+      if (success) {
+        setTrainers(trainers.map(t => t.id === trainerId ? { ...t, branchIds: newBranchIds } : t));
+        await addAuditLog('수정', '강사', trainer.name, `강사 소속 지점을 변경했습니다.`, newBranchIds[0] || trainer.branchIds[0]);
+        alert('강사 소속 지점이 성공적으로 변경되었습니다.');
+        // 데이터 새로고침
+        fetchInitialData();
+      } else {
+        alert('강사 소속 지점 변경에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('강사 소속 지점 변경 중 오류:', error);
+      alert('강사 소속 지점 변경 중 오류가 발생했습니다.');
     }
   };
 
@@ -1807,13 +1930,21 @@ const App: React.FC = () => {
     const memberName = member ? member.name.toLowerCase() : '';
     const searchLower = programFilter.search.toLowerCase();
     
-    return (
-      (programFilter.status === '전체' || p.status === programFilter.status) &&
+    const matches = (
+      p.status === programFilter.status &&
       (programFilter.search === '' || p.programName.toLowerCase().includes(searchLower) || memberName.includes(searchLower)) &&
       (programFilter.trainerId === '' || p.assignedTrainerId === programFilter.trainerId) &&
       (programFilter.branchId === '' || p.branchId === programFilter.branchId)
     );
+    
+    return matches;
   });
+
+  console.log('=== 프로그램 필터링 결과 ===');
+  console.log('원본 프로그램 수:', programs.length);
+  console.log('필터링된 프로그램 수:', filteredPrograms.length);
+  console.log('현재 필터:', programFilter);
+  console.log('필터링된 프로그램들:', filteredPrograms);
   
   const filteredMembers = members.filter(m => memberFilter.branchId === '' || m.branchId === memberFilter.branchId);
   
@@ -1878,7 +2009,7 @@ const App: React.FC = () => {
   return (
     <DndContext onDragEnd={handleDragEnd}>
     <div className="h-screen flex flex-col overflow-hidden">
-      <Header currentView={currentView} setCurrentView={setViewWithPermissions} currentUser={currentUser} onLogout={handleLogout} />
+      <Header currentView={currentView} setCurrentView={setViewWithPermissions} currentUser={currentUser} branches={branches} onLogout={handleLogout} onOpenSettings={() => setSettingsModalOpen(true)} />
       <div className="flex flex-1 overflow-hidden">
         <main className="flex-1 flex overflow-hidden">
           {currentView === 'programs' && <ProgramTable programs={filteredPrograms} members={members} sessions={sessions} allSessions={allSessions} trainers={filteredTrainersForDisplay} onAddProgram={() => handleOpenProgramModal(null)} onEditProgram={handleOpenProgramModal} onReRegisterProgram={(p) => handleOpenProgramModal({...p, id: ``, registrationType: '재등록', completedSessions: 0, status: '유효'})} onDeleteProgram={handleDeleteProgram} onSessionClick={handleSessionClick} filter={programFilter} setFilter={handleSetProgramFilter} allBranches={branches} onShowTooltip={(content, rect) => setTooltip({ content, rect })} onHideTooltip={() => setTooltip(null)} currentUser={currentUser} />}
@@ -1895,9 +2026,8 @@ const App: React.FC = () => {
           {/* FIX: Changed setFilter to setMemberFilter to pass the correct state updater function. */}
           {currentView === 'members' && <MemberManagement members={filteredMembers} programs={programs} sessions={sessions} onAddMember={() => handleOpenMemberModal(null)} onEditMember={handleOpenMemberModal} onDeleteMember={handleDeleteMember} onMemberClick={handleMemberClick} allBranches={branches} filter={memberFilter} setFilter={setMemberFilter} currentUser={currentUser} />}
           {currentView === 'logs' && <LogManagement logs={auditLogs} branches={branches} currentUser={currentUser} />}
-          {currentView === 'management' && <ManagementView currentUser={currentUser} users={users} trainers={trainers} allBranches={branches} presets={programPresets} onAddUser={(context) => handleOpenUserModal(null, context)} onDeleteUser={handleDeleteUser} onUpdateManagerBranches={handleUpdateManagerBranches} onUpdateUserRole={handleUpdateUserRole} onUpdateUsersBranch={handleUpdateUsersBranch} onAddPreset={() => handleOpenPresetModal(null)} onEditPreset={handleOpenPresetModal} onDeletePreset={handleDeletePreset} onAddBranch={() => handleOpenBranchModal(null)} onEditBranch={handleOpenBranchModal} onDeleteBranch={handleDeleteBranch} />}
+          {currentView === 'management' && <ManagementView currentUser={currentUser} users={users} trainers={trainers} allBranches={branches} presets={programPresets} onAddUser={(context) => handleOpenUserModal(null, context)} onDeleteUser={handleDeleteUser} onUpdateManagerBranches={handleUpdateManagerBranches} onUpdateUserRole={handleUpdateUserRole} onUpdateUsersBranch={handleUpdateUsersBranch} onAddPreset={() => handleOpenPresetModal(null)} onEditPreset={handleOpenPresetModal} onDeletePreset={handleDeletePreset} onAddBranch={() => handleOpenBranchModal(null)} onEditBranch={handleOpenBranchModal} onDeleteBranch={handleDeleteBranch} onAddTrainer={() => handleOpenTrainerModal(null)} onEditTrainer={handleOpenTrainerModal} onDeleteTrainer={handleDeleteTrainer} onRestoreTrainer={handleRestoreTrainer} onUpdateTrainerBranches={handleUpdateTrainerBranches} />}
         </main>
-        {currentView === 'programs' && <Sidebar trainers={filteredTrainersForDisplay} onAddTrainer={() => handleOpenTrainerModal(null)} onEditTrainer={handleOpenTrainerModal} onDeleteTrainer={handleDeleteTrainer} currentUser={currentUser} branches={branches} />}
       </div>
       
        {isTrainerDetailModalOpen && (
@@ -2772,6 +2902,204 @@ const App: React.FC = () => {
         </div>
       )}
       
+      {/* 설정 모달 */}
+      {isSettingsModalOpen && (
+        <Modal isOpen={isSettingsModalOpen} onClose={() => setSettingsModalOpen(false)} title="설정">
+          <div className="space-y-6">
+            {/* 사용자 정보 */}
+            <div className="bg-slate-50 p-4 rounded-lg">
+              <h3 className="text-lg font-semibold text-slate-800 mb-3">사용자 정보</h3>
+              <div className="space-y-2">
+                <div>
+                  <label className="text-sm font-medium text-slate-600">이름</label>
+                  <p className="text-lg font-semibold text-slate-800">{currentUser?.name}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-slate-600">역할</label>
+                  <p className="text-sm text-slate-700">
+                    {currentUser?.role === 'admin' ? '관리자' : 
+                     currentUser?.role === 'manager' ? '매니저' : 
+                     currentUser?.role === 'trainer' ? '강사' : '사용자'}
+                  </p>
+                </div>
+                {currentUser?.assignedBranchIds && currentUser.assignedBranchIds.length > 0 && (
+                  <div>
+                    <label className="text-sm font-medium text-slate-600">소속 지점</label>
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      {currentUser.assignedBranchIds.map(branchId => {
+                        const branch = branches.find(b => b.id === branchId);
+                        return branch ? (
+                          <span key={branchId} className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                            {branch.name}
+                          </span>
+                        ) : null;
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* 강사 프로필 설정 (강사인 경우) */}
+            {currentUser?.role === 'trainer' && currentUser.trainerProfileId && (
+              <div className="bg-green-50 p-4 rounded-lg">
+                <h3 className="text-lg font-semibold text-slate-800 mb-3">강사 프로필 설정</h3>
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm font-medium text-slate-600">강사명</label>
+                    <p className="text-lg font-semibold text-slate-800">
+                      {trainers.find(t => t.id === currentUser.trainerProfileId)?.name}
+                    </p>
+                  </div>
+                  
+                  {/* 프로필 이미지 */}
+                  <div>
+                    <label className="text-sm font-medium text-slate-600">프로필 이미지</label>
+                    <div className="mt-2 flex items-center gap-4">
+                      {trainers.find(t => t.id === currentUser.trainerProfileId)?.photoUrl ? (
+                        <img 
+                          src={trainers.find(t => t.id === currentUser.trainerProfileId)?.photoUrl} 
+                          alt="프로필" 
+                          className="w-16 h-16 rounded-full object-cover border-2 border-slate-300"
+                        />
+                      ) : (
+                        <div className="w-16 h-16 rounded-full bg-slate-200 flex items-center justify-center">
+                          <span className="text-slate-500 text-sm">이미지 없음</span>
+                        </div>
+                      )}
+                      <div>
+                        <button 
+                          onClick={() => {
+                            const input = document.createElement('input');
+                            input.type = 'file';
+                            input.accept = 'image/jpeg,image/png';
+                            input.onchange = async (e) => {
+                              const file = (e.target as HTMLInputElement).files?.[0];
+                              if (file) {
+                                // 파일 크기 체크 (5MB)
+                                if (file.size > 5 * 1024 * 1024) {
+                                  alert('파일 크기는 5MB를 초과할 수 없습니다.');
+                                  return;
+                                }
+                                
+                                // 파일 업로드 로직 (실제 구현 필요)
+                                console.log('이미지 업로드:', file.name);
+                                alert('이미지 업로드 기능은 구현 중입니다.');
+                              }
+                            };
+                            input.click();
+                          }}
+                          className="px-3 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 transition-colors"
+                        >
+                          이미지 변경
+                        </button>
+                        <p className="text-xs text-slate-500 mt-1">JPG, PNG 파일만 업로드 가능 (최대 5MB)</p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="text-sm font-medium text-slate-600">강사 색상</label>
+                    <div className="flex items-center gap-2 mt-1">
+                      <div 
+                        className="w-6 h-6 rounded-full border-2 border-slate-300" 
+                        style={{ backgroundColor: trainers.find(t => t.id === currentUser.trainerProfileId)?.color }}
+                      ></div>
+                      <span className="text-sm text-slate-600">
+                        {trainers.find(t => t.id === currentUser.trainerProfileId)?.color}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {/* 소속 지점 및 수업료 */}
+                  <div>
+                    <label className="text-sm font-medium text-slate-600">소속 지점 및 수업료</label>
+                    <div className="mt-2 space-y-2">
+                      {branches.map(branch => {
+                        const trainer = trainers.find(t => t.id === currentUser.trainerProfileId);
+                        const isAssigned = trainer?.branchIds.includes(branch.id);
+                        const branchRate = trainer?.branchRates[branch.id];
+                        
+                        return (
+                          <div 
+                            key={branch.id}
+                            className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                              isAssigned 
+                                ? 'bg-blue-50 border-blue-200' 
+                                : 'bg-slate-50 border-slate-200 hover:bg-slate-100'
+                            }`}
+                            onClick={() => {
+                              // 지점 할당/해제 로직
+                              console.log('지점 토글:', branch.name);
+                              alert('지점 할당/해제 기능은 구현 중입니다.');
+                            }}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <input 
+                                  type="checkbox" 
+                                  checked={isAssigned}
+                                  onChange={() => {}} // 클릭 이벤트는 부모 div에서 처리
+                                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                />
+                                <span className="font-medium text-slate-800">{branch.name}</span>
+                              </div>
+                              {isAssigned && branchRate && (
+                                <div className="flex items-center gap-2">
+                                  <input 
+                                    type="number" 
+                                    value={branchRate.type === 'percentage' ? branchRate.value * 100 : branchRate.value}
+                                    className="w-20 px-2 py-1 text-sm border border-slate-300 rounded"
+                                    readOnly
+                                  />
+                                  <span className="text-sm text-slate-600">
+                                    {branchRate.type === 'percentage' ? '%' : '원'}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="text-sm font-medium text-slate-600">상태</label>
+                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                      trainers.find(t => t.id === currentUser.trainerProfileId)?.isActive 
+                        ? 'bg-green-100 text-green-800' 
+                        : 'bg-red-100 text-red-800'
+                    }`}>
+                      {trainers.find(t => t.id === currentUser.trainerProfileId)?.isActive ? '활성' : '비활성'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 액션 버튼들 */}
+            <div className="flex gap-3">
+              <button 
+                onClick={() => {
+                  setSettingsModalOpen(false);
+                  handleOpenUserModal(currentUser);
+                }}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+              >
+                프로필 수정
+              </button>
+              <button 
+                onClick={() => setSettingsModalOpen(false)}
+                className="px-4 py-2 bg-slate-200 text-slate-700 rounded-md hover:bg-slate-300 transition-colors"
+              >
+                닫기
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
       {/* Feature Flag Debug (개발 환경에서만 표시) */}
       <FeatureFlagDebug context={context} />
     </div>

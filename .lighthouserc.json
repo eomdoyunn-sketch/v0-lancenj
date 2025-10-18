@@ -1,0 +1,16 @@
+{
+  "ci": {
+    "collect": {
+      "url": [
+        "http://localhost:4173/"
+      ],
+      "numberOfRuns": 1
+    },
+    "upload": {
+      "target": "github"
+    },
+    "assert": {
+      "preset": "lighthouse:no-pwa"
+    }
+  }
+}

@@ -22,46 +22,74 @@ export const Auth: React.FC<AuthProps> = ({ allBranches, onLogin }) => {
     setSuccess('');
     setLoading(true);
     
-    const formData = new FormData(e.currentTarget);
-    const email = formData.get('email') as string;
-    const password = formData.get('password') as string;
-    
-    if (view === 'login') {
-      const { user, error } = await AuthService.login(email, password);
-      if (error) {
-        setError(error);
-      } else if (user) {
-        onLogin(user);
-      }
-    } else if (view === 'signup') {
+    try {
+      const formData = new FormData(e.currentTarget);
+      const email = formData.get('email') as string;
+      const password = formData.get('password') as string;
+      
+      if (view === 'login') {
+        const { user, error } = await AuthService.login(email, password);
+        if (error) {
+          setError(error);
+        } else if (user) {
+          setSuccess('로그인 성공!');
+          // 약간의 지연 후 로그인 처리 (사용자 경험 개선)
+          setTimeout(() => {
+            onLogin(user);
+          }, 500);
+        }
+      } else if (view === 'signup') {
         const name = formData.get('name') as string;
         const confirmPassword = formData.get('confirmPassword') as string;
         const branchId = formData.get('branchId') as string;
 
+        // 유효성 검사
+        if (!name.trim()) {
+          setError('이름을 입력해주세요.');
+          setLoading(false);
+          return;
+        }
+        if (!email.trim()) {
+          setError('이메일을 입력해주세요.');
+          setLoading(false);
+          return;
+        }
+        if (!password || password.length < 6) {
+          setError('비밀번호는 6자 이상이어야 합니다.');
+          setLoading(false);
+          return;
+        }
         if (!branchId) {
-            setError('소속 지점을 선택해주세요.');
-            setLoading(false);
-            return;
+          setError('소속 지점을 선택해주세요.');
+          setLoading(false);
+          return;
         }
         if (password !== confirmPassword) {
-            setError('비밀번호가 일치하지 않습니다.');
-            setLoading(false);
-            return;
+          setError('비밀번호가 일치하지 않습니다.');
+          setLoading(false);
+          return;
         }
 
         const { user, error } = await AuthService.signup(name, email, password, branchId);
         if (error) {
-            setError(error);
+          setError(error);
         } else if (user) {
-            setSuccess('회원가입이 완료되었습니다. 자동으로 로그인됩니다.');
+          setSuccess('회원가입이 완료되었습니다. 자동으로 로그인됩니다.');
+          setTimeout(() => {
             onLogin(user);
+          }, 1000);
         } else {
-            setError('회원가입에 실패했습니다.');
+          setError('회원가입에 실패했습니다.');
         }
-    } else if (view === 'forgot') {
+      } else if (view === 'forgot') {
         setError('비밀번호 재설정 기능은 현재 지원되지 않습니다. 관리자에게 문의하세요.');
+      }
+    } catch (error) {
+      console.error('인증 처리 중 오류:', error);
+      setError('처리 중 오류가 발생했습니다. 다시 시도해주세요.');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const renderForm = () => {

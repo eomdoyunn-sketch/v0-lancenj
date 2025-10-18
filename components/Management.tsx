@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { User, ProgramPreset, Branch, Trainer, UserRole } from '../types';
-import { PermissionsManagement } from './PermissionsManagement';
 import { PlusIcon, EditIcon, TrashIcon, SettingsIcon, ShieldCheckIcon } from './Icons';
 
 interface ManagementViewProps {
@@ -20,9 +19,14 @@ interface ManagementViewProps {
     onAddBranch: () => void;
     onEditBranch: (branch: Branch) => void;
     onDeleteBranch: (branchId: string) => void;
+    onAddTrainer: () => void;
+    onEditTrainer: (trainer: Trainer) => void;
+    onDeleteTrainer: (trainerId: string) => void;
+    onRestoreTrainer: (trainerId: string) => void;
+    onUpdateTrainerBranches: (trainerId: string, newBranchIds: string[]) => void;
 }
 
-type ManagementTab = 'branches' | 'presets' | 'permissions';
+type ManagementTab = 'branches' | 'presets' | 'trainers';
 
 export const ManagementView: React.FC<ManagementViewProps> = ({
     currentUser,
@@ -41,9 +45,15 @@ export const ManagementView: React.FC<ManagementViewProps> = ({
     onAddBranch,
     onEditBranch,
     onDeleteBranch,
+    onAddTrainer,
+    onEditTrainer,
+    onDeleteTrainer,
+    onRestoreTrainer,
+    onUpdateTrainerBranches,
 }) => {
     const defaultTab: ManagementTab = currentUser?.role === 'admin' ? 'branches' : 'presets';
     const [activeTab, setActiveTab] = useState<ManagementTab>(defaultTab);
+    const [selectedBranch, setSelectedBranch] = useState<string>('');
 
     const branchMap = new Map(allBranches.map(b => [b.id, b.name]));
 
@@ -95,6 +105,153 @@ export const ManagementView: React.FC<ManagementViewProps> = ({
             </div>
         </div>
     );
+
+    const renderTrainers = () => {
+        // 지점 필터링된 강사 목록
+        const filteredTrainers = selectedBranch === '' 
+            ? trainers 
+            : trainers.filter(trainer => trainer.branchIds.includes(selectedBranch));
+
+        return (
+            <div className="mt-6">
+                <div className="flex justify-between items-center mb-4">
+                    <p className="text-slate-500">강사 정보를 관리합니다. 강사 수업료와 지점 배정을 설정할 수 있습니다.</p>
+                    <button onClick={onAddTrainer} className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700">
+                        <PlusIcon className="w-4 h-4" />
+                        강사 추가
+                    </button>
+                </div>
+
+                {/* 지점 필터 */}
+                <div className="mb-6 p-4 bg-slate-50 border border-slate-200 rounded-lg">
+                    <div className="flex items-center gap-4">
+                        <label className="text-sm font-medium text-slate-700">지점 필터:</label>
+                        <select
+                            value={selectedBranch}
+                            onChange={(e) => setSelectedBranch(e.target.value)}
+                            className="px-3 py-2 border border-slate-300 rounded-md text-sm"
+                        >
+                            <option value="">전체 지점</option>
+                            {allBranches.map(branch => (
+                                <option key={branch.id} value={branch.id}>{branch.name}</option>
+                            ))}
+                        </select>
+                        <span className="text-sm text-slate-500">
+                            {filteredTrainers.length}명의 강사
+                        </span>
+                    </div>
+                </div>
+
+
+            <div className="bg-white shadow-sm rounded-lg overflow-hidden">
+                <table className="min-w-full divide-y divide-slate-200">
+                    <thead className="bg-slate-50">
+                        <tr>
+                            <th className="p-4 font-semibold text-slate-600 text-left">강사명</th>
+                            <th className="p-4 font-semibold text-slate-600">이메일</th>
+                            <th className="p-4 font-semibold text-slate-600">상태</th>
+                            <th className="p-4 font-semibold text-slate-600">지점별 수업료</th>
+                            <th className="p-4 font-semibold text-slate-600">소속 지점</th>
+                            <th className="p-4 font-semibold text-slate-600 text-center">관리</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200">
+                        {filteredTrainers.map(trainer => {
+                            // 강사와 연결된 사용자 찾기
+                            const connectedUser = users.find(user => user.trainerProfileId === trainer.id);
+                            
+                            return (
+                                <tr key={trainer.id} className="hover:bg-slate-50">
+                                    <td className="p-4">
+                                        <div className="flex items-center gap-3">
+                                            <div 
+                                                className="w-6 h-6 rounded-full border-2 border-slate-300" 
+                                                style={{ backgroundColor: trainer.color }}
+                                            ></div>
+                                            <span className="font-medium text-slate-800">{trainer.name}</span>
+                                        </div>
+                                    </td>
+                                    <td className="p-4">
+                                        <span className="text-sm text-slate-600">
+                                            {connectedUser?.email || '연결된 계정 없음'}
+                                        </span>
+                                    </td>
+                                    <td className="p-4">
+                                        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${trainer.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                            {trainer.isActive ? '활성' : '비활성'}
+                                        </span>
+                                    </td>
+                                    <td className="p-4 text-slate-600">
+                                        <div className="space-y-1">
+                                            {Object.entries(trainer.branchRates).map(([branchId, rate]) => (
+                                                <div key={branchId} className="text-xs">
+                                                    <span className="font-medium">{branchMap.get(branchId) || '알 수 없음'}: </span>
+                                                    <span className="font-mono">
+                                                        {rate.type === 'fixed' ? `${rate.value.toLocaleString()}원` : `${(rate.value * 100).toFixed(0)}%`}
+                                                    </span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </td>
+                                    <td className="p-4 text-slate-600">
+                                        <div className="flex flex-wrap gap-1">
+                                            {trainer.branchIds.map(branchId => (
+                                                <span key={branchId} className="px-2 py-1 text-xs font-semibold rounded-full bg-slate-100 text-slate-700">
+                                                    {branchMap.get(branchId) || '알 수 없음'}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </td>
+                                    <td className="p-4">
+                                        <div className="flex items-center justify-center gap-2">
+                                            <button 
+                                                onClick={() => onEditTrainer(trainer)} 
+                                                className="p-2 text-slate-500 hover:text-blue-600 rounded-full hover:bg-slate-100" 
+                                                title="수정"
+                                            >
+                                                <EditIcon className="w-4 h-4" />
+                                            </button>
+                                            {trainer.isActive ? (
+                                                <button 
+                                                    onClick={() => onDeleteTrainer(trainer.id)} 
+                                                    className="p-2 text-slate-500 hover:text-red-600 rounded-full hover:bg-slate-100" 
+                                                    title="삭제"
+                                                >
+                                                    <TrashIcon className="w-4 h-4" />
+                                                </button>
+                                            ) : (
+                                                <button 
+                                                    onClick={() => onRestoreTrainer(trainer.id)} 
+                                                    className="p-2 text-slate-500 hover:text-green-600 rounded-full hover:bg-slate-100" 
+                                                    title="복원"
+                                                >
+                                                    <PlusIcon className="w-4 h-4" />
+                                                </button>
+                                            )}
+                                        </div>
+                                    </td>
+                                </tr>
+                            );
+                        })}
+                    </tbody>
+                </table>
+                {filteredTrainers.length === 0 && (
+                    <div className="text-center py-16 px-6">
+                        <h3 className="text-lg font-semibold text-slate-700">
+                            {selectedBranch === '' ? '등록된 강사가 없습니다.' : '해당 지점에 등록된 강사가 없습니다.'}
+                        </h3>
+                        <p className="text-slate-500 mt-2">
+                            {selectedBranch === '' 
+                                ? "'강사 추가' 버튼을 눌러 새 강사를 등록하세요."
+                                : "다른 지점을 선택하거나 '강사 추가' 버튼을 눌러 새 강사를 등록하세요."
+                            }
+                        </p>
+                    </div>
+                )}
+            </div>
+        </div>
+        );
+    };
 
     const renderPresets = () => (
         <div className="mt-6">
@@ -184,8 +341,8 @@ export const ManagementView: React.FC<ManagementViewProps> = ({
                       프로그램 프리셋
                   </TabButton>
                   {currentUser?.role === 'admin' && (
-                      <TabButton tab="permissions" current={activeTab} icon={<ShieldCheckIcon className="w-5 h-5" />}>
-                          권한 관리
+                      <TabButton tab="trainers" current={activeTab} icon={<SettingsIcon className="w-5 h-5" />}>
+                          강사 관리
                       </TabButton>
                   )}
               </nav>
@@ -193,78 +350,7 @@ export const ManagementView: React.FC<ManagementViewProps> = ({
           <div>
               {activeTab === 'branches' && currentUser?.role === 'admin' && renderBranches()}
               {activeTab === 'presets' && renderPresets()}
-              {activeTab === 'permissions' && currentUser?.role === 'admin' && (
-                  <div className="mt-6">
-                    {/* 특정 사용자 지점 배정 버튼 */}
-                    <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                        <h3 className="text-lg font-semibold text-blue-800 mb-2">사용자 지점 배정</h3>
-                        <p className="text-blue-600 text-sm mb-4">특정 사용자들을 선택한 지점으로 배정합니다.</p>
-                        <div className="flex flex-wrap gap-2">
-                            {allBranches.map(branch => (
-                                <button
-                                    key={branch.id}
-                                    onClick={() => {
-                                        if (window.confirm(`박용성, 최범진 사용자를 ${branch.name} 지점으로 배정하시겠습니까?`)) {
-                                            onUpdateUsersBranch(['박용성', '최범진'], branch.id);
-                                        }
-                                    }}
-                                    className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors"
-                                >
-                                    박용성, 최범진 → {branch.name}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                    
-                    {/* 강사 요율 수정 */}
-                    <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-                        <h3 className="text-lg font-semibold text-green-800 mb-2">강사 요율 수정</h3>
-                        <p className="text-green-600 text-sm mb-4">기존 강사들의 요율을 0%로 초기화합니다.</p>
-                        <div className="flex flex-wrap gap-2">
-                            {trainers.map(trainer => (
-                                <button
-                                    key={trainer.id}
-                                    onClick={() => {
-                                        if (window.confirm(`${trainer.name} 강사의 모든 지점 요율을 0%로 변경하시겠습니까?`)) {
-                                            // 강사 요율을 0%로 업데이트
-                                            const updatedRates: { [branchId: string]: { type: 'percentage', value: 0 } } = {};
-                                            trainer.branchIds.forEach(branchId => {
-                                                updatedRates[branchId] = { type: 'percentage', value: 0 };
-                                            });
-                                            
-                                            // DataManager를 통해 업데이트
-                                            import('../lib/dataService').then(({ DataManager }) => {
-                                                DataManager.updateTrainer(trainer.id, { branchRates: updatedRates })
-                                                    .then(() => {
-                                                        alert(`${trainer.name} 강사의 요율이 0%로 변경되었습니다.`);
-                                                        window.location.reload(); // 페이지 새로고침
-                                                    })
-                                                    .catch(error => {
-                                                        console.error('강사 요율 업데이트 실패:', error);
-                                                        alert('강사 요율 업데이트에 실패했습니다.');
-                                                    });
-                                            });
-                                        }
-                                    }}
-                                    className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 transition-colors"
-                                >
-                                    {trainer.name} → 0%
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                    
-                    <PermissionsManagement 
-                        users={users}
-                        trainers={trainers}
-                        allBranches={allBranches}
-                        onAddUser={onAddUser}
-                        onDeleteUser={onDeleteUser}
-                        onUpdateManagerBranches={onUpdateManagerBranches}
-                        onUpdateUserRole={onUpdateUserRole}
-                    />
-                  </div>
-              )}
+              {activeTab === 'trainers' && currentUser?.role === 'admin' && renderTrainers()}
           </div>
         </div>
     );

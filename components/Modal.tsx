@@ -9,7 +9,7 @@ interface ModalProps {
   onClose: () => void;
   title: ReactNode;
   children: ReactNode;
-  maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | 'full';
+  maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | 'full' | string;
   showCloseButton?: boolean;
   closeOnOverlayClick?: boolean;
 }
@@ -48,6 +48,11 @@ export const Modal: React.FC<ModalProps> = ({
   if (!isOpen) return null;
 
   const getMaxWidthClass = () => {
+    // maxWidth가 문자열로 직접 전달된 경우 (예: "max-w-4xl")
+    if (typeof maxWidth === 'string' && maxWidth.startsWith('max-w-')) {
+      return maxWidth;
+    }
+    
     switch (maxWidth) {
       case 'sm':
         return 'max-w-sm';

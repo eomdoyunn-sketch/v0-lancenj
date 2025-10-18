@@ -413,10 +413,29 @@ export class DataManager {
         console.error('트레이너 삭제 실패:', error);
         return false;
       }
-
-    return true;
+    
+      return true;
     } catch (error) {
       console.error('트레이너 삭제 중 오류:', error);
+      return false;
+    }
+  }
+
+  static async restoreTrainer(trainerId: string): Promise<boolean> {
+    try {
+      const { error } = await supabase
+        .from('trainers')
+        .update({ is_active: true })
+        .eq('id', trainerId);
+
+      if (error) {
+        console.error('트레이너 복원 실패:', error);
+        return false;
+      }
+    
+      return true;
+    } catch (error) {
+      console.error('트레이너 복원 중 오류:', error);
       return false;
     }
   }

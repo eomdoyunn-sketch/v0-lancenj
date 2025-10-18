@@ -16,9 +16,28 @@ export const Container: React.FC<ContainerProps> = ({
 }) => {
   const baseClasses = 'w-full mx-auto px-4 sm:px-6 lg:px-8';
   
-  const maxWidthClass = fluid ? '' : `max-w-${maxWidth}`;
+  const getMaxWidthClass = () => {
+    if (fluid) return '';
+
+    switch (maxWidth) {
+      case 'xs':
+        return 'max-w-xl';
+      case 'sm':
+        return 'max-w-2xl';
+      case 'md':
+        return 'max-w-4xl';
+      case 'lg':
+        return 'max-w-6xl';
+      case 'xl':
+        return 'max-w-7xl';
+      case '2xl':
+        return 'max-w-8xl';
+      default:
+        return 'max-w-4xl';
+    }
+  };
   
-  const containerClasses = `${baseClasses} ${maxWidthClass} ${className}`.trim();
+  const containerClasses = `${baseClasses} ${getMaxWidthClass()} ${className}`.trim();
   
   return (
     <div className={containerClasses}>
@@ -60,6 +79,44 @@ export const FluidContainer: React.FC<{ children: React.ReactNode; className?: s
   className = '' 
 }) => (
   <Container fluid className={className}>
+    {children}
+  </Container>
+);
+
+export const WideContainer: React.FC<{ children: React.ReactNode; className?: string }> = ({ 
+  children, 
+  className = '' 
+}) => (
+  <Container maxWidth="2xl" className={className}>
+    {children}
+  </Container>
+);
+
+export const FullWidthContainer: React.FC<{ children: React.ReactNode; className?: string }> = ({
+  children,
+  className = ''
+}) => (
+  <div className={`w-full px-4 sm:px-6 lg:px-8 ${className}`}>
+    {children}
+  </div>
+);
+
+// 적절한 너비의 컨테이너 (기본값)
+export const CenteredContainer: React.FC<{ children: React.ReactNode; className?: string }> = ({
+  children,
+  className = ''
+}) => (
+  <Container maxWidth="md" className={className}>
+    {children}
+  </Container>
+);
+
+// 마이페이지용 컨테이너
+export const MyPageContainer: React.FC<{ children: React.ReactNode; className?: string }> = ({
+  children,
+  className = ''
+}) => (
+  <Container maxWidth="lg" className={className}>
     {children}
   </Container>
 );
