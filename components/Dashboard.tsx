@@ -237,7 +237,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </div>
         
         <Grid cols={2} gap="lg" className="mb-8">
-            <Card>
+            <Card style={{ backgroundColor: '#F1F5F9' }}>
                 <CardHeader className="pb-3">
                     <CardTitle className="text-slate-500 font-medium text-sm sm:text-base">선택 기간 총 완료 수업</CardTitle>
                 </CardHeader>
@@ -255,7 +255,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   : permissions.canViewAllRevenue()
               }
             >
-              <Card>
+              <Card style={{ backgroundColor: '#F1F5F9' }}>
                   <CardHeader className="pb-3">
                       <CardTitle className="text-slate-500 font-medium text-sm sm:text-base">선택 기간 총 강사료</CardTitle>
                   </CardHeader>
@@ -278,7 +278,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <Card className="overflow-hidden">
             {/* 데스크톱 테이블 */}
             <div className="hidden sm:block">
-              <Table>
+              <Table style={{ backgroundColor: '#F1F5F9' }}>
                 <TableHeader>
                   <TableRow>
                     <TableHead className="p-4 font-semibold text-slate-600">강사명</TableHead>

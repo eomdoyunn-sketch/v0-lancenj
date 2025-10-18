@@ -191,7 +191,7 @@ export const MemberManagement: React.FC<MemberManagementProps> = ({ members, pro
         <Card className="overflow-hidden">
           {/* 데스크톱 테이블 */}
           <div className="hidden lg:block">
-            <Table>
+            <Table style={{ backgroundColor: '#F1F5F9' }}>
               <TableHeader>
                 <TableRow>
                   <TableHead className="p-4 font-semibold text-slate-600">회원명</TableHead>
@@ -242,7 +242,7 @@ export const MemberManagement: React.FC<MemberManagementProps> = ({ members, pro
           
           {/* 태블릿 테이블 */}
           <div className="hidden sm:block lg:hidden">
-            <Table>
+            <Table style={{ backgroundColor: '#F1F5F9' }}>
               <TableHeader>
                 <TableRow>
                   <TableHead className="p-3 font-semibold text-slate-600">회원명</TableHead>
