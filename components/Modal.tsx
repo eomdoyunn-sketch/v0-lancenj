@@ -21,29 +21,20 @@ export const Modal: React.FC<ModalProps> = ({
   children, 
   maxWidth = "md",
   showCloseButton = true,
-  closeOnOverlayClick = true
+  closeOnOverlayClick = false
 }) => {
   const { isMobile } = useResponsive();
 
-  // ESC 키로 모달 닫기
+  // 모달이 열릴 때 body 스크롤 방지
   useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) {
-        onClose();
-      }
-    };
-
     if (isOpen) {
-      document.addEventListener('keydown', handleEscape);
-      // 모달이 열릴 때 body 스크롤 방지
       document.body.style.overflow = 'hidden';
     }
 
     return () => {
-      document.removeEventListener('keydown', handleEscape);
       document.body.style.overflow = 'unset';
     };
-  }, [isOpen, onClose]);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -91,9 +82,10 @@ export const Modal: React.FC<ModalProps> = ({
         <div className={`${isMobile ? 'p-4' : 'p-6'} border-b flex justify-between items-center sticky top-0 bg-white rounded-t-lg`}>
           <h2 className={`${isMobile ? 'text-lg' : 'text-xl'} font-bold text-slate-800`}>{title}</h2>
           {showCloseButton && (
-            <button 
+            <button
               onClick={onClose}
-              className="p-2 text-slate-500 hover:text-slate-700 rounded-full hover:bg-slate-100 transition-colors"
+              className="p-2 rounded-full hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-colors"
+              aria-label="모달 닫기"
             >
               <XIcon className="w-5 h-5" />
             </button>

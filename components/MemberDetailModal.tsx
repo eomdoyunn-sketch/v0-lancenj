@@ -125,7 +125,7 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({ isOpen, on
     );
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title={titleNode} maxWidth="max-w-4xl">
+        <Modal isOpen={isOpen} onClose={onClose} title={titleNode} maxWidth="max-w-4xl" showCloseButton={true}>
              <div className="space-y-4">
                 <div className="p-4 bg-slate-50 rounded-lg grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                     <div>

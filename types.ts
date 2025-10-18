@@ -42,6 +42,7 @@ export interface MemberProgram {
   completedSessions: number;
   status: ProgramStatus;
   assignedTrainerId?: string;
+  sessionTrainers?: { [sessionNumber: number]: string }; // 회차별 강사 선택
   memo?: string;
   defaultSessionDuration?: number; // in minutes
   branchId: string;

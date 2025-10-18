@@ -20,6 +20,8 @@ import { AuthService } from './lib/authService';
 import { DataManager } from './lib/dataService';
 import { useFeatureFlagContext, useResponsiveFeatures } from './hooks/useFeatureFlag';
 import { FeatureFlagDebug } from './components/FeatureFlag';
+import { usePermissions } from './hooks/usePermissions';
+import { PermissionGuard } from './components/PermissionGuard';
 
 const availableColors = [
     'bg-red-500', 'bg-red-600', 'bg-orange-500', 'bg-orange-600', 'bg-amber-500', 'bg-amber-600', 
@@ -47,6 +49,7 @@ const initialProgramFormData = {
   totalSessions: '',
   status: '유효' as ProgramStatus,
   assignedTrainerId: '',
+  sessionTrainers: {} as { [sessionNumber: number]: string }, // 회차별 강사 선택
   memo: '',
   defaultSessionDuration: '50',
   branchId: '',
@@ -83,6 +86,9 @@ const App: React.FC = () => {
   // Feature Flag 시스템 초기화
   const { setUserContext, setDeviceContext, context } = useFeatureFlagContext();
   const { isResponsiveEnabled, areAllEnabled } = useResponsiveFeatures(context);
+  
+  // 권한 관리
+  const permissions = usePermissions();
   
   const [programs, setPrograms] = useState<MemberProgram[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
@@ -397,17 +403,10 @@ const App: React.FC = () => {
       }
 
       
-      // Set initial view based on user permissions
-      const permissions: Record<UserRole, View[]> = {
-        admin: ['programs', 'dashboard', 'members', 'logs', 'management'],
-        manager: ['programs', 'dashboard', 'members', 'logs', 'management'],
-        trainer: ['programs', 'dashboard', 'members'],
-        unassigned: [],
-      };
-      
-      const availableViews = permissions[currentUser.role];
-      if (availableViews.length > 0 && !availableViews.includes(currentView)) {
-        setCurrentView(availableViews[0]);
+      // 모든 사용자가 기본 뷰에 접근할 수 있도록 허용
+      // 권한 검증은 각 컴포넌트 내부에서 처리
+      if (!currentView || currentView === '') {
+        setCurrentView('programs');
       }
     }
   }, [currentUser, fetchInitialData, currentView]);
@@ -452,25 +451,9 @@ const App: React.FC = () => {
   const setViewWithPermissions = (view: View) => {
     if (!currentUser) return;
     
-    // Define permissions for each role
-    const permissions: Record<UserRole, View[]> = {
-      admin: ['programs', 'dashboard', 'members', 'logs', 'management'],
-      manager: ['programs', 'dashboard', 'members', 'logs', 'management'],
-      trainer: ['programs', 'dashboard', 'members'],
-      unassigned: [],
-    };
-
-    // Check if user has permission for the requested view
-    if (permissions[currentUser.role].includes(view)) {
-      setCurrentView(view);
-    } else {
-      console.warn(`User with role ${currentUser.role} does not have permission to access ${view}`);
-      // Redirect to first available view
-      const availableViews = permissions[currentUser.role];
-      if (availableViews.length > 0) {
-        setCurrentView(availableViews[0]);
-      }
-    }
+    // 모든 사용자가 기본 뷰에 접근할 수 있도록 허용
+    // 권한 검증은 각 컴포넌트 내부에서 처리
+    setCurrentView(view);
   };
 
   const handleLogin = (user: User) => {
@@ -513,6 +496,7 @@ const App: React.FC = () => {
             totalAmount: String(program.totalAmount),
             totalSessions: String(program.totalSessions),
             assignedTrainerId: program.assignedTrainerId || '',
+            sessionTrainers: program.sessionTrainers || {},
             memo: program.memo || '',
             defaultSessionDuration: String(program.defaultSessionDuration || 50),
         });
@@ -633,6 +617,7 @@ const App: React.FC = () => {
           totalSessions: totalSessions,
           status: programFormData.status,
           assignedTrainerId: programFormData.assignedTrainerId || undefined,
+          sessionTrainers: programFormData.sessionTrainers, // 회차별 강사 정보
           memo: programFormData.memo,
           defaultSessionDuration: Number(programFormData.defaultSessionDuration),
           branchId: programFormData.branchId,
@@ -1587,6 +1572,7 @@ const App: React.FC = () => {
       console.log('세션 상태 업데이트 완료');
       console.log('업데이트된 세션:', updatedSession);
 
+      let updatedProgram: MemberProgram | null = null;
       if (!wasAlreadyCompleted) {
           console.log('프로그램 완료 세션 수 업데이트 시작');
           const newCompletedCount = sessions.filter(s => s.programId === program.id && s.status === SessionStatus.Completed).length + 1;
@@ -1596,7 +1582,7 @@ const App: React.FC = () => {
           };
           console.log('프로그램 업데이트 데이터:', programUpdates);
           
-          const updatedProgram = await DataManager.updateProgram(program.id, programUpdates);
+          updatedProgram = await DataManager.updateProgram(program.id, programUpdates);
           console.log('프로그램 업데이트 결과:', updatedProgram);
           
           if (!updatedProgram) {
@@ -2256,33 +2242,81 @@ const App: React.FC = () => {
               </div>
             </div>
 
-            {/* 회차별 수업료 동적 필드 */}
+            {/* 회차별 강사 및 수업료 설정 */}
             {Number(programFormData.totalSessions) > 0 && (
               <div>
-                <label className="block text-sm font-medium text-slate-700">회차별 수업료 (선택사항)</label>
-                <div className="mt-2 grid grid-cols-4 gap-2">
+                <label className="block text-sm font-medium text-slate-700">회차별 강사 및 수업료 설정</label>
+                <div className="mt-2 grid grid-cols-2 gap-4">
                   {Array.from({ length: Number(programFormData.totalSessions) }, (_, i) => i + 1).map(sessionNum => (
-                    <div key={sessionNum}>
-                      <label className="block text-xs text-slate-600">{sessionNum}회차</label>
-                      <input
-                        type="number"
-                        value={programFormData.sessionFees?.[sessionNum] || ''}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          setProgramFormData(prev => ({
-                            ...prev,
-                            sessionFees: {
-                              ...prev.sessionFees,
-                              [sessionNum]: value ? Number(value) : undefined
+                    <div key={sessionNum} className="border border-slate-200 rounded-lg p-3">
+                      <label className="block text-sm font-medium text-slate-700 mb-2">{sessionNum}회차</label>
+                      
+                      {/* 강사 선택 */}
+                      <div className="mb-2">
+                        <label className="block text-xs text-slate-600 mb-1">담당 강사</label>
+                        <select
+                          value={programFormData.sessionTrainers?.[sessionNum] || ''}
+                          onChange={(e) => {
+                            const trainerId = e.target.value;
+                            setProgramFormData(prev => ({
+                              ...prev,
+                              sessionTrainers: {
+                                ...prev.sessionTrainers,
+                                [sessionNum]: trainerId
+                              }
+                            }));
+                          }}
+                          className="w-full px-2 py-1 text-sm border border-slate-300 rounded-md shadow-sm"
+                        >
+                          <option value="">강사 선택</option>
+                          {filteredTrainersForModal.filter(trainer => {
+                            // 트레이너의 경우
+                            if (currentUser?.role === 'trainer' && currentUser.trainerProfileId) {
+                              // 신규 등록 시에는 본인만 표시
+                              if (!programToEdit) {
+                                return trainer.id === currentUser.trainerProfileId;
+                              }
+                              // 수정 시에는 지점 전체 강사 표시
+                              const currentTrainer = trainers.find(t => t.id === currentUser.trainerProfileId);
+                              if (currentTrainer) {
+                                return trainer.branchIds.some(branchId => currentTrainer.branchIds.includes(branchId));
+                              }
                             }
-                          }));
-                        }}
-                        placeholder="선택사항"
-                        className="mt-1 block w-full px-2 py-1 text-sm border border-slate-300 rounded-md shadow-sm"
-                      />
+                            // 관리자/매니저는 모든 강사 표시
+                            return true;
+                          }).map(trainer => (
+                            <option key={trainer.id} value={trainer.id}>{trainer.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      
+                      {/* 수업료 입력 */}
+                      <div>
+                        <label className="block text-xs text-slate-600 mb-1">수업료 (원)</label>
+                        <input
+                          type="number"
+                          value={programFormData.sessionFees?.[sessionNum] || ''}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            setProgramFormData(prev => ({
+                              ...prev,
+                              sessionFees: {
+                                ...prev.sessionFees,
+                                [sessionNum]: value ? Number(value) : undefined
+                              }
+                            }));
+                          }}
+                          placeholder="수업료 입력"
+                          className="w-full px-2 py-1 text-sm border border-slate-300 rounded-md shadow-sm"
+                        />
+                      </div>
                     </div>
                   ))}
                 </div>
+                <p className="text-xs text-slate-500 mt-2">
+                  각 회차별로 담당 강사와 수업료를 설정할 수 있습니다. 
+                  강사가 선택되지 않은 회차는 기본 담당 강사가 담당합니다.
+                </p>
               </div>
             )}
 
