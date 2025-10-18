@@ -65,6 +65,19 @@ export const SessionTracker: React.FC<SessionTrackerProps> = ({ programId, total
 
         if (session.status === SessionStatus.Completed) {
           const trainer = trainerMap.get(session.trainerId);
+          console.log('완료된 세션 색상 디버깅:', {
+            sessionNumber,
+            trainerId: session.trainerId,
+            trainer: trainer,
+            trainerColor: trainer?.color,
+            fallbackColor: 'bg-green-500'
+          });
+          
+          // 강사 색상이 제대로 설정되지 않은 경우 디버깅
+          if (!trainer?.color) {
+            console.warn(`강사 색상이 설정되지 않음: trainerId=${session.trainerId}, trainer=`, trainer);
+          }
+          
           return (
             <button
               key={sessionNumber}
@@ -72,6 +85,7 @@ export const SessionTracker: React.FC<SessionTrackerProps> = ({ programId, total
               onMouseEnter={handleMouseEnter}
               onMouseLeave={onHideTooltip}
               className={`w-7 h-7 flex items-center justify-center ${trainer?.color || 'bg-green-500'} rounded text-white hover:opacity-80 transition-opacity`}
+              title={`완료된 세션 - 강사: ${trainer?.name || '알 수 없음'}, 색상: ${trainer?.color || '기본값'}`}
             >
               <CheckCircleIcon className="w-4 h-4" />
             </button>

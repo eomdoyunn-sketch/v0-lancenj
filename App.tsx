@@ -240,7 +240,7 @@ const App: React.FC = () => {
                     t.isActive && t.branchIds.some(branchId => trainerBranches.includes(branchId))
                 );
                 setTrainers(filteredTrainers);
-                console.log('App.tsx - 지점 전체 강사들:', filteredTrainers.map(t => t.name));
+                console.log('App.tsx - 지점 전체 강사들:', filteredTrainers.map(t => ({ name: t.name, color: t.color, id: t.id })));
 
                 // Filter programs by trainer assignment
                 const filteredPrograms = allPrograms.filter(p => 
@@ -3047,6 +3047,9 @@ const App: React.FC = () => {
                         {trainers.find(t => t.id === currentUser.trainerProfileId)?.color}
                       </span>
                     </div>
+                    <p className="text-xs text-slate-500 mt-1">
+                      색상 변경은 프로필 수정에서 가능합니다.
+                    </p>
                   </div>
                   
                   {/* 소속 지점 및 수업료 */}
@@ -3121,7 +3124,15 @@ const App: React.FC = () => {
               <button 
                 onClick={() => {
                   setSettingsModalOpen(false);
-                  handleOpenUserModal(currentUser);
+                  // 강사인 경우 강사 전용 모달 열기
+                  if (currentUser?.role === 'trainer' && currentUser.trainerProfileId) {
+                    const trainer = trainers.find(t => t.id === currentUser.trainerProfileId);
+                    if (trainer) {
+                      handleOpenTrainerModal(trainer);
+                    }
+                  } else {
+                    handleOpenUserModal(currentUser);
+                  }
                 }}
                 className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
               >
