@@ -319,3 +319,102 @@
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-5px); }
 }
+
+/* 모바일 모달 개선 */
+@layer utilities {
+  /* 모바일 모달 오버레이 */
+  .modal-overlay-mobile {
+    @apply fixed inset-0 z-50 bg-black bg-opacity-50;
+    /* 모바일에서 터치 이벤트 처리 */
+    touch-action: none;
+    /* 모바일에서 스크롤 방지 */
+    overscroll-behavior: contain;
+    /* 모바일에서 하드웨어 가속 */
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+  }
+
+  /* 모바일 모달 컨텐츠 */
+  .modal-content-mobile {
+    @apply bg-white rounded-lg shadow-strong w-full max-h-[90vh] overflow-y-auto;
+    /* 모바일에서 터치 스크롤 개선 */
+    -webkit-overflow-scrolling: touch;
+    /* 모바일에서 터치 이벤트 처리 */
+    touch-action: auto;
+    /* 모바일에서 하드웨어 가속 */
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+  }
+
+  /* 모바일 모달 애니메이션 */
+  .modal-enter {
+    animation: modalEnter 0.3s ease-out;
+  }
+
+  .modal-exit {
+    animation: modalExit 0.3s ease-in;
+  }
+
+  .modal-overlay-enter {
+    animation: modalOverlayEnter 0.3s ease-out;
+  }
+
+  .modal-overlay-exit {
+    animation: modalOverlayExit 0.3s ease-in;
+  }
+}
+
+/* 모바일 모달 애니메이션 키프레임 */
+@keyframes modalEnter {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes modalExit {
+  from {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.95) translateY(10px);
+  }
+}
+
+@keyframes modalOverlayEnter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modalOverlayExit {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* 모바일에서 모달이 닫힐 때 확실한 정리 */
+.modal-cleanup {
+  /* 모바일에서 모든 스타일 초기화 */
+  position: static !important;
+  top: auto !important;
+  left: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  width: auto !important;
+  height: auto !important;
+  background: transparent !important;
+  z-index: auto !important;
+}
