@@ -137,7 +137,7 @@ export const MemberManagement: React.FC<MemberManagementProps> = ({ members, pro
   // 권한이 없는 경우 메시지 표시
   if (!canManageMembers) {
     return (
-      <div className="flex-1 p-4 sm:p-6 bg-white overflow-y-auto">
+      <div className="flex-1 p-4 sm:p-6 overflow-y-auto" style={{ backgroundColor: '#F1F5F9' }}>
         <CenteredContainer>
           <Card className="text-center py-16">
             <CardContent>
@@ -154,7 +154,7 @@ export const MemberManagement: React.FC<MemberManagementProps> = ({ members, pro
   }
 
   return (
-    <div className="flex-1 p-4 sm:p-6 bg-white overflow-y-auto">
+    <div className="flex-1 p-4 sm:p-6 overflow-y-auto" style={{ backgroundColor: '#F1F5F9' }}>
       <CenteredContainer>
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-4">
           <div>
@@ -191,7 +191,7 @@ export const MemberManagement: React.FC<MemberManagementProps> = ({ members, pro
         <Card className="overflow-hidden">
           {/* 데스크톱 테이블 */}
           <div className="hidden lg:block">
-            <Table style={{ backgroundColor: '#F1F5F9' }}>
+            <Table style={{ backgroundColor: '#FFFFFF' }}>
               <TableHeader>
                 <TableRow>
                   <TableHead className="p-4 font-semibold text-slate-600">회원명</TableHead>
@@ -242,7 +242,7 @@ export const MemberManagement: React.FC<MemberManagementProps> = ({ members, pro
           
           {/* 태블릿 테이블 */}
           <div className="hidden sm:block lg:hidden">
-            <Table style={{ backgroundColor: '#F1F5F9' }}>
+            <Table style={{ backgroundColor: '#FFFFFF' }}>
               <TableHeader>
                 <TableRow>
                   <TableHead className="p-3 font-semibold text-slate-600">회원명</TableHead>

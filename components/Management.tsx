@@ -84,10 +84,10 @@ export const ManagementView: React.FC<ManagementViewProps> = ({
                                 </td>
                                 <td className="p-4">
                                     <div className="flex items-center justify-center gap-2">
-                                        <button onClick={() => onEditBranch(branch)} className="p-2 text-slate-500 hover:text-blue-600 rounded-full hover:bg-white" title="수정">
+                                        <button onClick={() => onEditBranch(branch)} className="p-2 text-slate-500 hover:text-blue-600 rounded-full hover:bg-slate-100" title="수정">
                                             <EditIcon className="w-4 h-4" />
                                         </button>
-                                        <button onClick={() => onDeleteBranch(branch.id)} className="p-2 text-slate-500 hover:text-red-600 rounded-full hover:bg-white" title="삭제">
+                                        <button onClick={() => onDeleteBranch(branch.id)} className="p-2 text-slate-500 hover:text-red-600 rounded-full hover:bg-slate-100" title="삭제">
                                             <TrashIcon className="w-4 h-4" />
                                         </button>
                                     </div>
@@ -143,7 +143,7 @@ export const ManagementView: React.FC<ManagementViewProps> = ({
                 </div>
 
 
-            <div className="bg-white shadow-sm rounded-lg overflow-hidden">
+            <div className="style={{ backgroundColor: '#F1F5F9' }} shadow-sm rounded-lg overflow-hidden">
                 <table className="min-w-full divide-y divide-slate-200">
                     <thead className="bg-slate-50">
                         <tr>
@@ -196,7 +196,7 @@ export const ManagementView: React.FC<ManagementViewProps> = ({
                                     <td className="p-4 text-slate-600">
                                         <div className="flex flex-wrap gap-1">
                                             {trainer.branchIds.map(branchId => (
-                                                <span key={branchId} className="px-2 py-1 text-xs font-semibold rounded-full bg-white text-slate-700">
+                                                <span key={branchId} className="px-2 py-1 text-xs font-semibold rounded-full bg-slate-100 text-slate-700">
                                                     {branchMap.get(branchId) || '알 수 없음'}
                                                 </span>
                                             ))}
@@ -206,7 +206,7 @@ export const ManagementView: React.FC<ManagementViewProps> = ({
                                         <div className="flex items-center justify-center gap-2">
                                             <button 
                                                 onClick={() => onEditTrainer(trainer)} 
-                                                className="p-2 text-slate-500 hover:text-blue-600 rounded-full hover:bg-white" 
+                                                className="p-2 text-slate-500 hover:text-blue-600 rounded-full hover:bg-slate-100" 
                                                 title="수정"
                                             >
                                                 <EditIcon className="w-4 h-4" />
@@ -214,7 +214,7 @@ export const ManagementView: React.FC<ManagementViewProps> = ({
                                             {trainer.isActive ? (
                                                 <button 
                                                     onClick={() => onDeleteTrainer(trainer.id)} 
-                                                    className="p-2 text-slate-500 hover:text-red-600 rounded-full hover:bg-white" 
+                                                    className="p-2 text-slate-500 hover:text-red-600 rounded-full hover:bg-slate-100" 
                                                     title="삭제"
                                                 >
                                                     <TrashIcon className="w-4 h-4" />
@@ -222,7 +222,7 @@ export const ManagementView: React.FC<ManagementViewProps> = ({
                                             ) : (
                                                 <button 
                                                     onClick={() => onRestoreTrainer(trainer.id)} 
-                                                    className="p-2 text-slate-500 hover:text-green-600 rounded-full hover:bg-white" 
+                                                    className="p-2 text-slate-500 hover:text-green-600 rounded-full hover:bg-slate-100" 
                                                     title="복원"
                                                 >
                                                     <PlusIcon className="w-4 h-4" />
@@ -280,16 +280,16 @@ export const ManagementView: React.FC<ManagementViewProps> = ({
                                 <td className="p-4 text-slate-600 font-mono text-right">{preset.totalAmount.toLocaleString()}원</td>
                                 <td className="p-4 text-slate-600 font-mono text-center">{preset.totalSessions}회</td>
                                 <td className="p-4 text-slate-600">
-                                    <span className="px-2 py-1 text-xs font-semibold rounded-full bg-white text-slate-700">
+                                    <span className="px-2 py-1 text-xs font-semibold rounded-full bg-slate-100 text-slate-700">
                                         {preset.branchId ? branchMap.get(preset.branchId) || '알 수 없음' : '모든 지점'}
                                     </span>
                                 </td>
                                 <td className="p-4">
                                     <div className="flex items-center justify-center gap-2">
-                                        <button onClick={() => onEditPreset(preset)} className="p-2 text-slate-500 hover:text-blue-600 rounded-full hover:bg-white" title="수정">
+                                        <button onClick={() => onEditPreset(preset)} className="p-2 text-slate-500 hover:text-blue-600 rounded-full hover:bg-slate-100" title="수정">
                                             <EditIcon className="w-4 h-4" />
                                         </button>
-                                        <button onClick={() => onDeletePreset(preset.id)} className="p-2 text-slate-500 hover:text-red-600 rounded-full hover:bg-white" title="삭제">
+                                        <button onClick={() => onDeletePreset(preset.id)} className="p-2 text-slate-500 hover:text-red-600 rounded-full hover:bg-slate-100" title="삭제">
                                             <TrashIcon className="w-4 h-4" />
                                         </button>
                                     </div>
@@ -323,7 +323,7 @@ export const ManagementView: React.FC<ManagementViewProps> = ({
     );
 
     return (
-        <div className="flex-1 p-6 bg-white overflow-y-auto">
+        <div className="flex-1 p-6 style={{ backgroundColor: '#F1F5F9' }} overflow-y-auto">
           <div className="flex justify-between items-center mb-6">
             <div>
                 <h2 className="text-3xl font-bold text-slate-800">설정 관리</h2>

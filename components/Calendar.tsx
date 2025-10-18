@@ -205,7 +205,7 @@ export const ProgramTable: React.FC<ProgramTableProps> = ({
             <button 
               key={status}
               onClick={() => setFilter({ ...filter, status })}
-              className={`px-3 py-1 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${filter.status === status ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-600 hover:bg-slate-300'}`}
+              className={`px-3 py-1 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${filter.status === status ? 'bg-slate-100 text-slate-800 shadow-sm' : 'text-slate-600 hover:bg-slate-300'}`}
             >
               {status}
             </button>

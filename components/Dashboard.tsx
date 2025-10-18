@@ -165,7 +165,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   }
 
   return (
-    <div className="flex-1 p-4 sm:p-6 lg:p-8 bg-white overflow-y-auto">
+    <div className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto" style={{ backgroundColor: '#F1F5F9' }}>
       <CenteredContainer>
         <div className="mb-6">
           <h2 className={`${isMobile ? 'text-xl' : 'text-2xl lg:text-3xl'} font-bold text-slate-800 mb-4`}>
@@ -180,7 +180,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               <PermissionGuard requiredRole="admin">
                 <button 
                   onClick={() => setFilter({ branchId: '' })}
-                  className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${filter.branchId === '' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-600 hover:bg-slate-300'}`}
+                  className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${filter.branchId === '' ? 'bg-blue-500 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-300'}`}
                 >
                   모든 지점
                 </button>
@@ -192,7 +192,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 >
                   <button 
                     onClick={() => setFilter({ branchId: branch.id })}
-                    className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${filter.branchId === branch.id ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-600 hover:bg-slate-300'}`}
+                    className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${filter.branchId === branch.id ? 'bg-blue-500 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-300'}`}
                   >
                     {branch.name}
                   </button>
@@ -225,19 +225,19 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 className={`px-3 py-2 rounded-md shadow-sm text-sm font-medium border ${
                   isAllTimeSelected() 
                     ? 'bg-blue-500 text-white border-blue-500' 
-                    : 'bg-white text-slate-700 border-slate-300 hover:bg-white'
+                    : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
                 }`}
               >
                 전체
               </button>
-              <button onClick={setThisMonth} className="px-3 py-2 bg-white text-slate-700 rounded-md shadow-sm text-sm font-medium hover:bg-white border">이번 달</button>
-              <button onClick={setLastMonth} className="px-3 py-2 bg-white text-slate-700 rounded-md shadow-sm text-sm font-medium hover:bg-white border">지난 달</button>
+              <button onClick={setThisMonth} className="px-3 py-2 bg-white text-slate-700 rounded-md shadow-sm text-sm font-medium hover:bg-slate-100 border">이번 달</button>
+              <button onClick={setLastMonth} className="px-3 py-2 bg-white text-slate-700 rounded-md shadow-sm text-sm font-medium hover:bg-slate-100 border">지난 달</button>
             </div>
           </div>
         </div>
         
         <Grid cols={2} gap="lg" className="mb-8">
-            <Card style={{ backgroundColor: '#F1F5F9' }}>
+            <Card style={{ backgroundColor: '#FFFFFF' }}>
                 <CardHeader className="pb-3">
                     <CardTitle className="text-slate-500 font-medium text-sm sm:text-base">선택 기간 총 완료 수업</CardTitle>
                 </CardHeader>
@@ -255,7 +255,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   : permissions.canViewAllRevenue()
               }
             >
-              <Card style={{ backgroundColor: '#F1F5F9' }}>
+              <Card style={{ backgroundColor: '#FFFFFF' }}>
                   <CardHeader className="pb-3">
                       <CardTitle className="text-slate-500 font-medium text-sm sm:text-base">선택 기간 총 강사료</CardTitle>
                   </CardHeader>
@@ -278,7 +278,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <Card className="overflow-hidden">
             {/* 데스크톱 테이블 */}
             <div className="hidden sm:block">
-              <Table style={{ backgroundColor: '#F1F5F9' }}>
+              <Table style={{ backgroundColor: '#FFFFFF' }}>
                 <TableHeader>
                   <TableRow>
                     <TableHead className="p-4 font-semibold text-slate-600">강사명</TableHead>
