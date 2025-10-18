@@ -160,12 +160,23 @@ export const MyPage: React.FC<MyPageProps> = ({
                 <div>
                   <label className="text-sm font-medium text-slate-600">소속 지점</label>
                   <div className="flex flex-wrap gap-2 mt-1">
-                    {currentUser?.assignedBranchIds?.map(branchId => {
-                      const branch = branches.find(b => b.id === branchId);
-                      return branch ? (
-                        <Badge key={branchId} variant="outline">{branch.name}</Badge>
-                      ) : null;
-                    }) || <span className="text-slate-500">지점 정보 없음</span>}
+                    {currentUser?.role === 'trainer' && trainerProfile ? (
+                      // 강사인 경우 trainerProfile의 branchIds 사용
+                      trainerProfile.branchIds?.map(branchId => {
+                        const branch = branches.find(b => b.id === branchId);
+                        return branch ? (
+                          <Badge key={branchId} variant="outline">{branch.name}</Badge>
+                        ) : null;
+                      }) || <span className="text-slate-500">지점 정보 없음</span>
+                    ) : (
+                      // 관리자/매니저인 경우 currentUser의 assignedBranchIds 사용
+                      currentUser?.assignedBranchIds?.map(branchId => {
+                        const branch = branches.find(b => b.id === branchId);
+                        return branch ? (
+                          <Badge key={branchId} variant="outline">{branch.name}</Badge>
+                        ) : null;
+                      }) || <span className="text-slate-500">지점 정보 없음</span>
+                    )}
                   </div>
                 </div>
                 {trainerProfile && (

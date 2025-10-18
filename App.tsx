@@ -1096,6 +1096,15 @@ const App: React.FC = () => {
         if (updatedTrainer) {
           setTrainers(trainers.map(t => t.id === updatedTrainer.id ? updatedTrainer : t));
           
+          // 강사가 본인 정보를 수정한 경우 currentUser도 업데이트
+          if (currentUser?.role === 'trainer' && currentUser.trainerProfileId === trainerToEdit.id) {
+            setCurrentUser({
+              ...currentUser,
+              assignedBranchIds: updatedTrainer.branchIds
+            });
+            console.log('강사 지점 정보 업데이트:', updatedTrainer.branchIds);
+          }
+          
           // 강사 수업료 변경 시 관련 세션들의 수업료 즉시 업데이트
           await updateSessionsWithNewTrainerRates(trainerToEdit.id, updatedTrainer);
           
@@ -3103,7 +3112,17 @@ const App: React.FC = () => {
                                 if (trainer) {
                                   const success = await DataManager.updateTrainer(trainer.id, { color });
                                   if (success) {
-                                    setTrainers(trainers.map(t => t.id === trainer.id ? { ...t, color } : t));
+                                    const updatedTrainer = { ...trainer, color };
+                                    setTrainers(trainers.map(t => t.id === trainer.id ? updatedTrainer : t));
+                                    
+                                    // 강사 정보 업데이트 시 currentUser도 동기화
+                                    if (currentUser?.role === 'trainer' && currentUser.trainerProfileId === trainer.id) {
+                                      setCurrentUser({
+                                        ...currentUser,
+                                        assignedBranchIds: updatedTrainer.branchIds
+                                      });
+                                    }
+                                    
                                     alert('색상이 변경되었습니다.');
                                   } else {
                                     alert('색상 변경에 실패했습니다.');
@@ -3217,10 +3236,19 @@ const App: React.FC = () => {
                                         branchRates: { ...trainer.branchRates, [branch.id]: newRate }
                                       });
                                       if (success) {
-                                        setTrainers(trainers.map(t => t.id === trainer.id ? {
-                                          ...t,
-                                          branchRates: { ...t.branchRates, [branch.id]: newRate }
-                                        } : t));
+                                        const updatedTrainer = {
+                                          ...trainer,
+                                          branchRates: { ...trainer.branchRates, [branch.id]: newRate }
+                                        };
+                                        setTrainers(trainers.map(t => t.id === trainer.id ? updatedTrainer : t));
+                                        
+                                        // 강사 정보 업데이트 시 currentUser도 동기화
+                                        if (currentUser?.role === 'trainer' && currentUser.trainerProfileId === trainer.id) {
+                                          setCurrentUser({
+                                            ...currentUser,
+                                            assignedBranchIds: updatedTrainer.branchIds
+                                          });
+                                        }
                                       }
                                     } else {
                                       const newRate = { type: 'fixed', value: value };
@@ -3228,10 +3256,19 @@ const App: React.FC = () => {
                                         branchRates: { ...trainer.branchRates, [branch.id]: newRate }
                                       });
                                       if (success) {
-                                        setTrainers(trainers.map(t => t.id === trainer.id ? {
-                                          ...t,
-                                          branchRates: { ...t.branchRates, [branch.id]: newRate }
-                                        } : t));
+                                        const updatedTrainer = {
+                                          ...trainer,
+                                          branchRates: { ...trainer.branchRates, [branch.id]: newRate }
+                                        };
+                                        setTrainers(trainers.map(t => t.id === trainer.id ? updatedTrainer : t));
+                                        
+                                        // 강사 정보 업데이트 시 currentUser도 동기화
+                                        if (currentUser?.role === 'trainer' && currentUser.trainerProfileId === trainer.id) {
+                                          setCurrentUser({
+                                            ...currentUser,
+                                            assignedBranchIds: updatedTrainer.branchIds
+                                          });
+                                        }
                                       }
                                     }
                                   }}
