@@ -387,5 +387,3 @@ export const featureFlagUtils = {
   },
 };
 
-// React import (useFeatureFlag 훅에서 사용)
-import React from 'react';

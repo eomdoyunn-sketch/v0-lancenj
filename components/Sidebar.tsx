@@ -5,6 +5,8 @@ import { UsersIcon, PlusIcon, XIcon } from './Icons';
 import { useDroppable } from '@dnd-kit/core';
 import { supabase } from '../lib/supabaseClient';
 import { useResponsive } from '../hooks/useResponsive';
+import { usePermissions } from '../hooks/usePermissions';
+import { PermissionGuard } from './PermissionGuard';
 
 interface SidebarProps {
   trainers: Trainer[];
@@ -29,6 +31,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const [isSessionValid, setIsSessionValid] = useState(true);
   const { isMobile } = useResponsive();
+  const permissions = usePermissions();
 
   // 모든 훅을 먼저 호출
   const { setNodeRef: setActiveRef, isOver: isOverActive } = useDroppable({ id: 'active-droppable' });
@@ -82,14 +85,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   // 트레이너는 본인만 볼 수 있음
   let filteredTrainers = trainers;
-  if (currentUser?.role === 'trainer' && currentUser.trainerProfileId) {
+  if (permissions.isTrainer() && currentUser?.trainerProfileId) {
     filteredTrainers = trainers.filter(t => t.id === currentUser.trainerProfileId);
   }
   
   const activeTrainers = filteredTrainers.filter(t => t.isActive);
   const inactiveTrainers = filteredTrainers.filter(t => !t.isActive);
 
-  const canAddTrainer = currentUser && (currentUser.role === 'admin' || currentUser.role === 'manager');
+  const canAddTrainer = permissions.canManageTrainers();
 
   const sidebarClasses = isMobile 
     ? `fixed inset-y-0 right-0 w-72 bg-white shadow-strong z-50 transform transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : 'translate-x-full'}`
@@ -125,11 +128,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   <UsersIcon className="w-5 h-5 text-slate-500"/>
                   <h2 className="text-lg font-bold text-slate-800 hidden sm:block">강사 목록</h2>
               </div>
-              {canAddTrainer && (
-                  <button onClick={onAddTrainer} className="p-1.5 text-slate-500 hover:text-blue-600 rounded-full hover:bg-slate-200">
-                      <PlusIcon className="w-5 h-5"/>
-                  </button>
-              )}
+              <PermissionGuard requiredPermission={() => permissions.canManageTrainers()}>
+                <button onClick={onAddTrainer} className="p-1.5 text-slate-500 hover:text-blue-600 rounded-full hover:bg-slate-200">
+                    <PlusIcon className="w-5 h-5"/>
+                </button>
+              </PermissionGuard>
           </div>
           <p className="text-sm text-slate-500 mb-4">활성 강사를 프로그램에 드래그하여 배정하거나, 아래 목록으로 옮겨 비활성화하세요.</p>
           

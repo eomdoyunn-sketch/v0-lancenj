@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { User, View, Branch } from '../types';
 import { BarChartIcon, DumbbellIcon, UsersIcon, FileTextIcon, SettingsIcon, LogOutIcon, MenuIcon, XIcon, UserIcon } from './Icons';
 import { useResponsive } from '../hooks/useResponsive';
+import { usePermissions } from '../hooks/usePermissions';
 
 interface HeaderProps {
   currentView: View;
@@ -15,6 +16,7 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({ currentView, setCurrentView, currentUser, branches, onLogout, onOpenSettings }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { isMobile } = useResponsive();
+  const permissions = usePermissions();
   
   const baseButtonClass = "flex items-center gap-2 px-3 py-2 sm:px-4 rounded-md text-sm font-medium transition-colors";
   const activeButtonClass = "bg-blue-600 text-white";
@@ -24,8 +26,8 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setCurrentView, cur
     { id: 'programs', label: '프로그램 관리', icon: DumbbellIcon, show: true },
     { id: 'members', label: '회원 관리', icon: UsersIcon, show: true },
     { id: 'dashboard', label: '대시보드', icon: BarChartIcon, show: true },
-    { id: 'logs', label: '로그 관리', icon: FileTextIcon, show: currentUser && !['trainer'].includes(currentUser.role) },
-    { id: 'management', label: '설정 관리', icon: SettingsIcon, show: currentUser && !['trainer'].includes(currentUser.role) },
+    { id: 'logs', label: '로그 관리', icon: FileTextIcon, show: permissions.canViewLogs() },
+    { id: 'management', label: '설정 관리', icon: SettingsIcon, show: permissions.canAccessManagement() },
   ].filter(item => item.show);
 
   const toggleMobileMenu = () => {
@@ -75,7 +77,7 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setCurrentView, cur
               {currentUser?.assignedBranchIds && currentUser.assignedBranchIds.length > 0 
                 ? currentUser.assignedBranchIds.map(branchId => {
                     const branch = branches.find(b => b.id === branchId);
-                    return branch ? branch.name : branchId;
+                    return branch ? branch.name : '지점 정보 없음';
                   }).join(', ')
                 : currentUser?.role === 'admin' ? '관리자' : 
                   currentUser?.role === 'manager' ? '매니저' : 
@@ -112,7 +114,7 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setCurrentView, cur
                 {currentUser?.assignedBranchIds && currentUser.assignedBranchIds.length > 0 
                   ? currentUser.assignedBranchIds.map(branchId => {
                       const branch = branches.find(b => b.id === branchId);
-                      return branch ? branch.name : branchId;
+                      return branch ? branch.name : '지점 정보 없음';
                     }).join(', ')
                   : currentUser?.role === 'admin' ? '관리자' : 
                     currentUser?.role === 'manager' ? '매니저' : 

@@ -2,11 +2,13 @@ import React from 'react';
 import { Member, MemberProgram, Session, MemberStatus, User, Branch } from '../types';
 import { PlusIcon, EditIcon, TrashIcon, DownloadIcon } from './Icons';
 import { useResponsive } from '../hooks/useResponsive';
+import { usePermissions } from '../hooks/usePermissions';
 import { CenteredContainer, Grid, Flex } from './layout/Container';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
+import { PermissionGuard } from './PermissionGuard';
 
 interface MemberManagementProps {
   members: Member[];
@@ -24,8 +26,9 @@ interface MemberManagementProps {
 
 export const MemberManagement: React.FC<MemberManagementProps> = ({ members, programs, sessions, onAddMember, onEditMember, onDeleteMember, onMemberClick, allBranches, filter, setFilter, currentUser }) => {
   const { isMobile, isTablet } = useResponsive();
+  const permissions = usePermissions();
   
-  const canManageMembers = currentUser && (currentUser.role === 'admin' || currentUser.role === 'manager' || currentUser.role === 'trainer');
+  const canManageMembers = permissions.canManageMembers();
   const branchMap = new Map(allBranches.map(b => [b.id, b.name]));
 
   const getStatusChip = (status: MemberStatus) => {
@@ -130,6 +133,25 @@ export const MemberManagement: React.FC<MemberManagementProps> = ({ members, pro
     }
   };
 
+
+  // 권한이 없는 경우 메시지 표시
+  if (!canManageMembers) {
+    return (
+      <div className="flex-1 p-4 sm:p-6 bg-slate-100 overflow-y-auto">
+        <CenteredContainer>
+          <Card className="text-center py-16">
+            <CardContent>
+              <h2 className="text-2xl font-bold text-slate-800 mb-4">회원 관리</h2>
+              <p className="text-slate-600 mb-6">회원 관리 기능에 접근할 권한이 없습니다.</p>
+              <p className="text-sm text-slate-500">
+                관리자나 매니저 권한이 필요합니다. 관리자에게 문의하세요.
+              </p>
+            </CardContent>
+          </Card>
+        </CenteredContainer>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 p-4 sm:p-6 bg-slate-100 overflow-y-auto">

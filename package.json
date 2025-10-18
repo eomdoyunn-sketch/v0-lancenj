@@ -15,7 +15,6 @@
     "test:performance": "vitest run tests/performance.test.tsx",
     "test:smoke": "vitest run tests/smoke.test.tsx",
     "test:coverage": "vitest run --coverage",
-    "analyze": "vite-bundle-analyzer",
     "deploy:staging": "echo 'Deploying to staging...'",
     "deploy:production": "echo 'Deploying to production...'"
   },
@@ -38,6 +37,7 @@
     "@testing-library/react": "^14.0.0",
     "@testing-library/user-event": "^14.0.0",
     "@types/node": "^22.14.0",
+    "@vitejs/plugin-react": "^5.0.4",
     "@vitest/coverage-v8": "^1.0.0",
     "axe-core": "^4.8.0",
     "jsdom": "^23.0.0",

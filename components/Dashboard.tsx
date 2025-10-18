@@ -2,13 +2,13 @@ import React from 'react';
 import { Member, MemberProgram, Session, Trainer, Branch, User } from '../types';
 import { ScheduleCalendar } from './ScheduleCalendar';
 import { useResponsive } from '../hooks/useResponsive';
+import { usePermissions } from '../hooks/usePermissions';
 import { CenteredContainer } from './layout/Container';
 import { Grid } from './layout/Grid';
-import { Flex } from './layout/Flex';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Badge } from './ui/badge';
-import { Button } from './ui/button';
+import { PermissionGuard } from './PermissionGuard';
 
 interface DashboardProps {
   trainers: Trainer[];
@@ -45,10 +45,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
     setFilter,
     currentUser,
 }) => {
-  const { isMobile, isTablet } = useResponsive();
+  const { isMobile } = useResponsive();
+  const permissions = usePermissions();
   
   const programMap = new Map(programs.map(p => [p.id, p]));
-  const branchMap = new Map(allBranches.map(b => [b.id, b.name]));
 
   // Filter data based on selected branch and user role
   let branchFilteredTrainers = trainers.filter(t => !filter.branchId || t.branchIds.includes(filter.branchId));
@@ -61,7 +61,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   // 트레이너는 본인이 완료한 수업만 정산에서 조회 가능
   let trainerStatsTrainers = branchFilteredTrainers; // 정산 테이블용
-  if (currentUser?.role === 'trainer' && currentUser.trainerProfileId) {
+  if (permissions.isTrainer() && currentUser?.trainerProfileId) {
     sessionsForBranch = sessionsForBranch.filter(s => s.trainerId === currentUser.trainerProfileId);
     trainerStatsTrainers = branchFilteredTrainers.filter(t => t.id === currentUser.trainerProfileId);
   }
@@ -177,22 +177,26 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <div className="flex items-center gap-2 p-1 bg-slate-200 rounded-lg flex-wrap">
               <span className="text-sm font-medium text-slate-700 px-2">지점:</span>
               {/* 관리자만 모든 지점 버튼 표시 */}
-              {currentUser?.role === 'admin' && (
+              <PermissionGuard requiredRole="admin">
                 <button 
                   onClick={() => setFilter({ branchId: '' })}
                   className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${filter.branchId === '' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-600 hover:bg-slate-300'}`}
                 >
                   모든 지점
                 </button>
-              )}
+              </PermissionGuard>
               {allBranches.map(branch => (
-                <button 
+                <PermissionGuard 
                   key={branch.id}
-                  onClick={() => setFilter({ branchId: branch.id })}
-                  className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${filter.branchId === branch.id ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-600 hover:bg-slate-300'}`}
+                  requiredPermission={() => permissions.canAccessBranch(branch.id)}
                 >
-                  {branch.name}
-                </button>
+                  <button 
+                    onClick={() => setFilter({ branchId: branch.id })}
+                    className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${filter.branchId === branch.id ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-600 hover:bg-slate-300'}`}
+                  >
+                    {branch.name}
+                  </button>
+                </PermissionGuard>
               ))}
             </div>
           </div>
@@ -244,77 +248,93 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     </p>
                 </CardContent>
             </Card>
-            <Card>
-                <CardHeader className="pb-3">
-                    <CardTitle className="text-slate-500 font-medium text-sm sm:text-base">선택 기간 총 강사료</CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0">
-                    <p className={`${isMobile ? 'text-2xl' : 'text-3xl lg:text-4xl'} font-bold text-green-600`}>
-                      ₩{totalMonthRevenue.toLocaleString()}
-                    </p>
-                </CardContent>
-            </Card>
+            <PermissionGuard 
+              requiredPermission={() => 
+                filter.branchId 
+                  ? permissions.canViewBranchRevenue(filter.branchId)
+                  : permissions.canViewAllRevenue()
+              }
+            >
+              <Card>
+                  <CardHeader className="pb-3">
+                      <CardTitle className="text-slate-500 font-medium text-sm sm:text-base">선택 기간 총 강사료</CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                      <p className={`${isMobile ? 'text-2xl' : 'text-3xl lg:text-4xl'} font-bold text-green-600`}>
+                        ₩{totalMonthRevenue.toLocaleString()}
+                      </p>
+                  </CardContent>
+              </Card>
+            </PermissionGuard>
         </Grid>
         
-        <Card className="overflow-hidden">
-          {/* 데스크톱 테이블 */}
-          <div className="hidden sm:block">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="p-4 font-semibold text-slate-600">강사명</TableHead>
-                  <TableHead className="p-4 font-semibold text-slate-600">상태</TableHead>
-                  <TableHead className="p-4 font-semibold text-slate-600 text-right">총 수업 횟수</TableHead>
-                  <TableHead className="p-4 font-semibold text-slate-600 text-right">총 수업료</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {trainerStats.map(stat => (
-                  <TableRow key={stat.id} className="hover:bg-slate-50 cursor-pointer" onClick={() => onTrainerClick(stat.id)}>
-                    <TableCell className="p-4 font-medium text-slate-800">{stat.name}</TableCell>
-                    <TableCell className="p-4">
-                      <Badge variant={stat.isActive ? 'default' : 'destructive'}>
-                        {stat.isActive ? '활성' : '비활성'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="p-4 text-right text-slate-600 font-mono">{stat.sessionCount} 회</TableCell>
-                    <TableCell className="p-4 text-right text-slate-800 font-semibold font-mono">₩{stat.totalFee.toLocaleString()}</TableCell>
-                  </TableRow>
-                ))}
-                {trainerStats.length === 0 && (
+        <PermissionGuard 
+          requiredPermission={() => 
+            filter.branchId 
+              ? permissions.canViewBranchRevenue(filter.branchId)
+              : permissions.canViewAllRevenue()
+          }
+        >
+          <Card className="overflow-hidden">
+            {/* 데스크톱 테이블 */}
+            <div className="hidden sm:block">
+              <Table>
+                <TableHeader>
                   <TableRow>
-                      <TableCell colSpan={4} className="text-center py-10 px-6 text-slate-500">
-                          해당 기간/지점의 정산 내역이 없습니다.
-                      </TableCell>
+                    <TableHead className="p-4 font-semibold text-slate-600">강사명</TableHead>
+                    <TableHead className="p-4 font-semibold text-slate-600">상태</TableHead>
+                    <TableHead className="p-4 font-semibold text-slate-600 text-right">총 수업 횟수</TableHead>
+                    <TableHead className="p-4 font-semibold text-slate-600 text-right">총 수업료</TableHead>
                   </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-          
-          {/* 모바일 카드 뷰 */}
-          <div className="sm:hidden">
-            {trainerStats.map(stat => (
-              <div key={stat.id} className="p-4 border-b border-slate-100 hover:bg-slate-50 cursor-pointer" onClick={() => onTrainerClick(stat.id)}>
-                <div className="flex justify-between items-start mb-2">
-                  <h3 className="font-medium text-slate-800">{stat.name}</h3>
-                  <span className={`px-2 py-1 text-xs font-semibold rounded-full ${stat.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                    {stat.isActive ? '활성' : '비활성'}
-                  </span>
+                </TableHeader>
+                <TableBody>
+                  {trainerStats.map(stat => (
+                    <TableRow key={stat.id} className="hover:bg-slate-50 cursor-pointer" onClick={() => onTrainerClick(stat.id)}>
+                      <TableCell className="p-4 font-medium text-slate-800">{stat.name}</TableCell>
+                      <TableCell className="p-4">
+                        <Badge variant={stat.isActive ? 'default' : 'destructive'}>
+                          {stat.isActive ? '활성' : '비활성'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="p-4 text-right text-slate-600 font-mono">{stat.sessionCount} 회</TableCell>
+                      <TableCell className="p-4 text-right text-slate-800 font-semibold font-mono">₩{stat.totalFee.toLocaleString()}</TableCell>
+                    </TableRow>
+                  ))}
+                  {trainerStats.length === 0 && (
+                    <TableRow>
+                        <TableCell colSpan={4} className="text-center py-10 px-6 text-slate-500">
+                            해당 기간/지점의 정산 내역이 없습니다.
+                        </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+            
+            {/* 모바일 카드 뷰 */}
+            <div className="sm:hidden">
+              {trainerStats.map(stat => (
+                <div key={stat.id} className="p-4 border-b border-slate-100 hover:bg-slate-50 cursor-pointer" onClick={() => onTrainerClick(stat.id)}>
+                  <div className="flex justify-between items-start mb-2">
+                    <h3 className="font-medium text-slate-800">{stat.name}</h3>
+                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${stat.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                      {stat.isActive ? '활성' : '비활성'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-slate-600">수업 횟수: <span className="font-mono">{stat.sessionCount} 회</span></span>
+                    <span className="text-slate-800 font-semibold font-mono">₩{stat.totalFee.toLocaleString()}</span>
+                  </div>
                 </div>
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-slate-600">수업 횟수: <span className="font-mono">{stat.sessionCount} 회</span></span>
-                  <span className="text-slate-800 font-semibold font-mono">₩{stat.totalFee.toLocaleString()}</span>
+              ))}
+              {trainerStats.length === 0 && (
+                <div className="text-center py-10 px-6 text-slate-500">
+                  해당 기간/지점의 정산 내역이 없습니다.
                 </div>
-              </div>
-            ))}
-            {trainerStats.length === 0 && (
-              <div className="text-center py-10 px-6 text-slate-500">
-                해당 기간/지점의 정산 내역이 없습니다.
-              </div>
-            )}
-          </div>
-        </Card>
+              )}
+            </div>
+          </Card>
+        </PermissionGuard>
 
         <div className="mt-8">
           <h2 className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold text-slate-800 mb-4`}>전체 스케줄 현황</h2>

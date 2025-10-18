@@ -1,5 +1,6 @@
 import { supabase } from './supabaseClient';
 import { User, UserRole } from '../types';
+import { PermissionManager } from './permissionUtils';
 
 export class AuthService {
   private static currentUser: User | null = null;
@@ -173,24 +174,23 @@ export class AuthService {
         return { user: null, error: '트레이너 프로필 생성에 실패했습니다.' };
       }
 
-      // 3. users 테이블에 사용자 정보 저장
+      // 3. 트리거가 자동으로 public.users에 사용자를 생성하므로, 추가 정보만 업데이트
       const { error: profileError } = await supabase
         .from('users')
-        .insert({
-          id: authData.user.id,
+        .update({
           name,
-          email,
           role: 'trainer',
           assigned_branch_ids: [branchId],
           trainer_profile_id: trainerData.id
-        });
+        })
+        .eq('id', authData.user.id);
 
       if (profileError) {
-        console.error('사용자 프로필 생성 실패:', profileError);
-        return { user: null, error: `사용자 프로필 생성에 실패했습니다: ${profileError.message}` };
+        console.error('사용자 프로필 업데이트 실패:', profileError);
+        return { user: null, error: `사용자 프로필 업데이트에 실패했습니다: ${profileError.message}` };
       }
 
-      // 4. 사용자 권한을 바로 승인 상태로 설정
+      // 4. 사용자 권한을 바로 승인 상태로 설정 (user_permissions 테이블에 기록)
       const { error: permissionError } = await supabase
         .from('user_permissions')
         .upsert({
@@ -245,6 +245,87 @@ export class AuthService {
   // 인증 상태 확인
   static isAuthenticated(): boolean {
     return this.currentUser !== null;
+  }
+
+  // 권한 검증 메서드들
+  static hasRole(role: UserRole): boolean {
+    return PermissionManager.hasRole(this.currentUser, role);
+  }
+
+  static hasAnyRole(roles: UserRole[]): boolean {
+    return PermissionManager.hasAnyRole(this.currentUser, roles);
+  }
+
+  static isAdmin(): boolean {
+    return PermissionManager.isAdmin(this.currentUser);
+  }
+
+  static isManager(): boolean {
+    return PermissionManager.isManager(this.currentUser);
+  }
+
+  static isTrainer(): boolean {
+    return PermissionManager.isTrainer(this.currentUser);
+  }
+
+  static isUnassigned(): boolean {
+    return PermissionManager.isUnassigned(this.currentUser);
+  }
+
+  static canAccessBranch(branchId: string): boolean {
+    return PermissionManager.canAccessBranch(this.currentUser, branchId);
+  }
+
+  static canViewAllRevenue(): boolean {
+    return PermissionManager.canViewAllRevenue(this.currentUser);
+  }
+
+  static canViewBranchRevenue(branchId: string): boolean {
+    return PermissionManager.canViewBranchRevenue(this.currentUser, branchId);
+  }
+
+  static canManageMembers(branchId?: string): boolean {
+    return PermissionManager.canManageMembers(this.currentUser, branchId);
+  }
+
+  static canManageTrainers(): boolean {
+    return PermissionManager.canManageTrainers(this.currentUser);
+  }
+
+  static canManagePrograms(branchId?: string): boolean {
+    return PermissionManager.canManagePrograms(this.currentUser, branchId);
+  }
+
+  static canManageSessions(branchId?: string): boolean {
+    return PermissionManager.canManageSessions(this.currentUser, branchId);
+  }
+
+  static canManageUsers(): boolean {
+    return PermissionManager.canManageUsers(this.currentUser);
+  }
+
+  static canManageBranches(): boolean {
+    return PermissionManager.canManageBranches(this.currentUser);
+  }
+
+  static canAccessDashboard(): boolean {
+    return PermissionManager.canAccessDashboard(this.currentUser);
+  }
+
+  static canAccessManagement(): boolean {
+    return PermissionManager.canAccessManagement(this.currentUser);
+  }
+
+  static canViewLogs(): boolean {
+    return PermissionManager.canViewLogs(this.currentUser);
+  }
+
+  static isPendingApproval(): boolean {
+    return PermissionManager.isPendingApproval(this.currentUser);
+  }
+
+  static isApproved(): boolean {
+    return PermissionManager.isApproved(this.currentUser);
   }
 
   // 사용자 업데이트
@@ -314,17 +395,16 @@ export class AuthService {
         return null;
       }
 
-      // 2. users 테이블에 사용자 정보 저장
+      // 2. 트리거가 자동으로 public.users에 사용자를 생성하므로, 추가 정보만 업데이트
       const { data, error: profileError } = await (supabase as any)
         .from('users')
-        .insert({
-          id: authData.user.id,
+        .update({
           name,
-          email,
           role,
           assigned_branch_ids: (role === 'manager' && branchId ? [branchId] : []) as string[],
           trainer_profile_id: null
         } as any)
+        .eq('id', authData.user.id)
         .select()
         .single();
 
