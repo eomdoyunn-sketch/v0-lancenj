@@ -323,8 +323,16 @@ const App: React.FC = () => {
 
 
   useEffect(() => {
-    // Initialize auth service
-    AuthService.initialize();
+    // Initialize auth service (비동기로 변경)
+    const initializeAuth = async () => {
+      try {
+        console.log('AuthService 초기화 시작...');
+        await AuthService.initialize();
+        console.log('AuthService 초기화 완료');
+      } catch (error) {
+        console.error('AuthService 초기화 실패:', error);
+      }
+    };
     
     // Load branches data even before login (needed for signup form)
     const loadBranches = async () => {
@@ -359,10 +367,15 @@ const App: React.FC = () => {
     const initializeApp = async () => {
       try {
         console.log('앱 초기화 시작...');
+        
+        // AuthService 초기화 (세션 복원 포함)
+        await initializeAuth();
+        
+        // 지점 데이터 로딩
         await loadBranches();
         console.log('지점 데이터 로딩 완료');
         
-        // 초기 사용자 상태 확인
+        // 초기 사용자 상태 확인 (AuthService 초기화 후)
         const initialUser = AuthService.getCurrentUser();
         console.log('초기 사용자:', initialUser);
         if (initialUser) {
@@ -376,7 +389,7 @@ const App: React.FC = () => {
         setIsLoading(false);
       }
     };
-    
+
     initializeApp();
   }, []);
 

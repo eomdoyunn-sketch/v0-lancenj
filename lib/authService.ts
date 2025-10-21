@@ -7,29 +7,43 @@ export class AuthService {
   private static onAuthStateChangeCallback: ((user: User | null) => void) | null = null;
   private static initialized = false;
 
-  // Initialize - 간소화된 초기화
-  static initialize() {
+  // Initialize - 비동기 초기화로 변경
+  static async initialize() {
     if (this.initialized) return;
     this.initialized = true;
     
-    // 세션 복원만 수행 (리스너는 필요시에만 설정)
-    this.restoreSession();
+    // 세션 복원을 기다림
+    await this.restoreSession();
+    
+    // 인증 상태 변화 리스너 설정
+    this.setupAuthStateListener();
   }
 
   // 세션 상태 변화 리스너 설정 (필요시에만)
   static setupAuthStateListener() {
     supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth state changed:', event);
+      console.log('Auth state changed:', event, session?.user?.email);
       
       if (event === 'SIGNED_OUT') {
+        console.log('사용자 로그아웃 감지');
         this.currentUser = null;
         if (this.onAuthStateChangeCallback) {
           this.onAuthStateChangeCallback(null);
         }
       } else if (event === 'SIGNED_IN' && session?.user) {
+        console.log('사용자 로그인 감지:', session.user.email);
         await this.loadUserProfile(session.user.id, session.user.email);
         if (this.onAuthStateChangeCallback && this.currentUser) {
           this.onAuthStateChangeCallback(this.currentUser);
+        }
+      } else if (event === 'TOKEN_REFRESHED' && session?.user) {
+        console.log('토큰 갱신 감지:', session.user.email);
+        // 토큰이 갱신된 경우에도 사용자 정보를 확인
+        if (!this.currentUser) {
+          await this.loadUserProfile(session.user.id, session.user.email);
+          if (this.onAuthStateChangeCallback && this.currentUser) {
+            this.onAuthStateChangeCallback(this.currentUser);
+          }
         }
       }
     });
@@ -40,9 +54,10 @@ export class AuthService {
     this.onAuthStateChangeCallback = callback;
   }
 
-  // 세션 복원
+  // 세션 복원 - 개선된 버전
   private static async restoreSession() {
     try {
+      console.log('세션 복원 시작...');
       const { data: { session }, error } = await supabase.auth.getSession();
       
       if (error) {
@@ -52,8 +67,10 @@ export class AuthService {
       }
       
       if (session?.user) {
+        console.log('유효한 세션 발견, 사용자 프로필 로드 중...', session.user.email);
         // 세션이 유효한 경우에만 사용자 프로필 로드
         await this.loadUserProfile(session.user.id, session.user.email);
+        console.log('사용자 프로필 로드 완료:', this.currentUser);
       } else {
         // 세션이 없는 경우 사용자 정보 초기화
         this.currentUser = null;
@@ -69,9 +86,12 @@ export class AuthService {
   private static async loadUserProfile(userId: string, userEmail?: string) {
     try {
       if (!userEmail) {
+        console.log('이메일이 없어 사용자 프로필을 로드할 수 없습니다.');
         this.currentUser = null;
         return;
       }
+
+      console.log('사용자 프로필 로드 시작:', userEmail);
 
       // 데이터베이스에서 사용자 정보 조회
       const { data: userData, error } = await supabase
@@ -94,6 +114,8 @@ export class AuthService {
           assignedBranchIds: [],
           trainerProfileId: null
         } as User;
+        
+        console.log('기본 사용자 정보 생성 완료:', this.currentUser);
       } else {
         // 데이터베이스에서 가져온 정보 사용
         this.currentUser = {
@@ -104,6 +126,8 @@ export class AuthService {
           assignedBranchIds: userData.assigned_branch_ids || [],
           trainerProfileId: userData.trainer_profile_id
         } as User;
+        
+        console.log('데이터베이스에서 사용자 정보 로드 완료:', this.currentUser);
       }
     } catch (error) {
       console.error('사용자 프로필 로드 중 오류:', error);

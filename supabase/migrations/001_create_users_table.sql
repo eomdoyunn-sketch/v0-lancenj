@@ -49,3 +49,5 @@ CREATE TRIGGER update_users_updated_at
     BEFORE UPDATE ON public.users 
     FOR EACH ROW 
     EXECUTE FUNCTION update_updated_at_column();
+
+
