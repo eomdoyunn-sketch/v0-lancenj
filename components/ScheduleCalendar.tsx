@@ -25,6 +25,14 @@ export const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({ sessions, al
   const trainerMap = new Map(trainers.map(t => [t.id, t]));
   const programMap = new Map(programs.map(p => [p.id, p]));
   const memberMap = new Map(members.map(m => [m.id, m]));
+
+  // 날짜를 로컬 타임존 기준 YYYY-MM-DD 문자열로 변환 (UTC 변환으로 인한 하루 밀림 방지)
+  const toLocalYYYYMMDD = (date: Date) => {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  };
   
   // App.tsx에서 이미 올바른 trainers 데이터가 전달되므로 추가 필터링 불필요
   let filteredTrainers = trainers.filter(t => t.isActive);
@@ -157,7 +165,7 @@ export const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({ sessions, al
         {WEEK_DAYS.map(dayName => <div key={dayName} className="text-center font-semibold text-sm p-2 bg-slate-50 border-r border-b">{dayName}</div>)}
         {days.map((d, i) => {
             const isCurrentMonth = d.getMonth() === currentDate.getMonth();
-            const dateStr = d.toISOString().split('T')[0];
+            const dateStr = toLocalYYYYMMDD(d);
             const daySessions = filteredSessions.filter(s => s.date === dateStr);
             return (
                 <div key={i} className={`p-2 border-r border-b min-h-[120px] ${isCurrentMonth ? 'bg-white' : 'bg-slate-50'}`}>
@@ -202,7 +210,7 @@ const renderWeekView = () => {
             </div>
 
             {weekDays.map((day, i) => {
-                const dateStr = day.toISOString().split('T')[0];
+                const dateStr = toLocalYYYYMMDD(day);
                 const daySessions = filteredSessions.filter(s => s.date === dateStr);
                 return (
                     <div key={i} className="relative border-r">
@@ -228,7 +236,7 @@ const renderWeekView = () => {
 };
   
 const renderDayView = () => {
-    const dateStr = currentDate.toISOString().split('T')[0];
+    const dateStr = toLocalYYYYMMDD(currentDate);
     return (
         <div className="grid" style={{ gridTemplateColumns: `60px 1fr` }}>
             {/* Header */}
