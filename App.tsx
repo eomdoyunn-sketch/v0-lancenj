@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { MemberProgram, Trainer, Session, SessionStatus, View, ProgramStatus, Member, ProgramPreset, ExerciseGoal, ExerciseExperience, PreferredTime, AuditLog, User, UserRole, Branch, RateType, BranchRate } from './types';
+import { formatLocalYYYYMMDD } from './lib/utils';
 import { ProgramTable } from './components/Calendar';
 import { Header } from './components/Header';
 import { Dashboard } from './components/Dashboard';
@@ -43,8 +44,8 @@ const initialProgramFormData = {
   memberIds: [] as string[],
   programName: '',
   registrationType: '신규' as '신규' | '재등록',
-  registrationDate: new Date().toISOString().split('T')[0],
-  paymentDate: new Date().toISOString().split('T')[0],
+  registrationDate: formatLocalYYYYMMDD(new Date()),
+  paymentDate: formatLocalYYYYMMDD(new Date()),
   totalAmount: '',
   totalSessions: '',
   status: '유효' as ProgramStatus,
@@ -2861,7 +2862,7 @@ const App: React.FC = () => {
                 }}>
                     <div className="space-y-4">
                         <div className="grid grid-cols-2 gap-4">
-                            <div><label className="block text-sm font-medium text-slate-700">날짜</label><input type="date" name="date" defaultValue={sessionToEdit?.date || new Date().toISOString().split('T')[0]} required className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm"/></div>
+                            <div><label className="block text-sm font-medium text-slate-700">날짜</label><input type="date" name="date" defaultValue={sessionToEdit?.date || formatLocalYYYYMMDD(new Date())} required className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm"/></div>
                             <div><label className="block text-sm font-medium text-slate-700">시작 시간</label><input type="time" name="startTime" defaultValue={sessionToEdit?.startTime || '10:00'} required className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm"/></div>
                         </div>
                          <div className="grid grid-cols-2 gap-4">

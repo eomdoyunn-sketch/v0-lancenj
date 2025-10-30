@@ -2,6 +2,7 @@ import React from 'react';
 import { Member, MemberProgram, Session, MemberStatus, User, Branch } from '../types';
 import { PlusIcon, EditIcon, TrashIcon, DownloadIcon } from './Icons';
 import { useResponsive } from '../hooks/useResponsive';
+import { formatLocalYYYYMMDD } from '../lib/utils';
 import { usePermissions } from '../hooks/usePermissions';
 import { CenteredContainer, Grid, Flex } from './layout/Container';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
@@ -64,7 +65,7 @@ export const MemberManagement: React.FC<MemberManagementProps> = ({ members, pro
     if (allActivityTimestamps.length > 0) {
         const lastActivityTimestamp = Math.max(...allActivityTimestamps);
         const lastActivityDateObj = new Date(lastActivityTimestamp);
-        lastActivityDate = lastActivityDateObj.toISOString().split('T')[0];
+        lastActivityDate = formatLocalYYYYMMDD(lastActivityDateObj);
         daysSinceLastActivity = Math.floor((new Date().getTime() - lastActivityTimestamp) / (1000 * 3600 * 24));
     }
 
@@ -125,7 +126,7 @@ export const MemberManagement: React.FC<MemberManagementProps> = ({ members, pro
     if (link.download !== undefined) {
         const url = URL.createObjectURL(blob);
         link.setAttribute("href", url);
-        link.setAttribute("download", `members_${new Date().toISOString().split('T')[0]}.csv`);
+        link.setAttribute("download", `members_${formatLocalYYYYMMDD(new Date())}.csv`);
         link.style.visibility = 'hidden';
         document.body.appendChild(link);
         link.click();

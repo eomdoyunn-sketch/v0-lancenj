@@ -5,6 +5,7 @@ import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { useResponsive } from '../hooks/useResponsive';
+import { formatLocalYYYYMMDD } from '../lib/utils';
 import { MyPageContainer } from './layout/Container';
 import { Grid } from './layout/Grid';
 import { Flex } from './layout/Flex';
@@ -38,7 +39,7 @@ export const MyPage: React.FC<MyPageProps> = ({
   onCompleteSession
 }) => {
   const { isMobile, isTablet } = useResponsive();
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(formatLocalYYYYMMDD(new Date()));
 
   // 현재 사용자의 강사 프로필
   const trainerProfile = currentUser?.trainerProfileId 
