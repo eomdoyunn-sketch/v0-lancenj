@@ -41,7 +41,8 @@ export interface MemberProgram {
   unitPrice: number;
   completedSessions: number;
   status: ProgramStatus;
-  assignedTrainerId?: string;
+  assignedTrainerId?: string; // 하위 호환성을 위해 유지 (deprecated)
+  assignedTrainerIds?: string[]; // 담당 강사 ID 배열 (여러 명 선택 가능)
   sessionTrainers?: { [sessionNumber: number]: string }; // 회차별 강사 선택
   memo?: string;
   defaultSessionDuration?: number; // in minutes

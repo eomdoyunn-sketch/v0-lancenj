@@ -465,7 +465,9 @@ export class DataManager {
         unitPrice: program.unit_price,
         completedSessions: program.completed_sessions,
         status: program.status as ProgramStatus,
-        assignedTrainerId: program.assigned_trainer_id,
+        assignedTrainerId: program.assigned_trainer_id, // 하위 호환성
+        assignedTrainerIds: program.assigned_trainer_ids || (program.assigned_trainer_id ? [program.assigned_trainer_id] : []),
+        sessionTrainers: program.session_trainers,
         memo: program.memo,
         defaultSessionDuration: program.default_session_duration,
         branchId: program.branch_id,
@@ -494,7 +496,11 @@ export class DataManager {
           unit_price: programData.unitPrice,
           completed_sessions: programData.completedSessions || 0,
           status: programData.status,
-          assigned_trainer_id: programData.assignedTrainerId,
+          assigned_trainer_id: programData.assignedTrainerId, // 하위 호환성
+          assigned_trainer_ids: programData.assignedTrainerIds && programData.assignedTrainerIds.length > 0 
+            ? programData.assignedTrainerIds 
+            : (programData.assignedTrainerId ? [programData.assignedTrainerId] : []),
+          session_trainers: programData.sessionTrainers,
           memo: programData.memo,
           default_session_duration: programData.defaultSessionDuration,
           branch_id: programData.branchId,
@@ -522,7 +528,9 @@ export class DataManager {
         unitPrice: newProgram.unit_price,
         completedSessions: newProgram.completed_sessions,
         status: newProgram.status as ProgramStatus,
-        assignedTrainerId: newProgram.assigned_trainer_id,
+        assignedTrainerId: newProgram.assigned_trainer_id, // 하위 호환성
+        assignedTrainerIds: newProgram.assigned_trainer_ids || (newProgram.assigned_trainer_id ? [newProgram.assigned_trainer_id] : []),
+        sessionTrainers: newProgram.session_trainers,
         memo: newProgram.memo,
         defaultSessionDuration: newProgram.default_session_duration,
         branchId: newProgram.branch_id,
@@ -555,6 +563,12 @@ export class DataManager {
         // null 또는 undefined를 null로 변환하여 Supabase에서 처리할 수 있도록 함
         updateData.assigned_trainer_id = updates.assignedTrainerId || null;
       }
+      if (updates.assignedTrainerIds !== undefined) {
+        updateData.assigned_trainer_ids = updates.assignedTrainerIds && updates.assignedTrainerIds.length > 0 
+          ? updates.assignedTrainerIds 
+          : [];
+      }
+      if (updates.sessionTrainers !== undefined) updateData.session_trainers = updates.sessionTrainers;
       if (updates.memo !== undefined) updateData.memo = updates.memo;
       if (updates.defaultSessionDuration !== undefined) updateData.default_session_duration = updates.defaultSessionDuration;
       if (updates.branchId !== undefined) updateData.branch_id = updates.branchId;
@@ -596,7 +610,9 @@ export class DataManager {
         unitPrice: data.unit_price,
         completedSessions: data.completed_sessions,
         status: data.status as ProgramStatus,
-        assignedTrainerId: data.assigned_trainer_id,
+        assignedTrainerId: data.assigned_trainer_id, // 하위 호환성
+        assignedTrainerIds: data.assigned_trainer_ids || (data.assigned_trainer_id ? [data.assigned_trainer_id] : []),
+        sessionTrainers: data.session_trainers,
         memo: data.memo,
         defaultSessionDuration: data.default_session_duration,
         branchId: data.branch_id,

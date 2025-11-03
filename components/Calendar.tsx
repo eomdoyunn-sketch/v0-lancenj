@@ -69,7 +69,9 @@ export const ProgramTable: React.FC<ProgramTableProps> = ({
   // 모바일용 카드 컴포넌트
   const MobileProgramCard = ({ program }: { program: MemberProgram }) => {
     const programMembers = members.filter(m => program.memberIds.includes(m.id));
-    const assignedTrainer = trainers.find(t => t.id === program.assignedTrainerId);
+    // assignedTrainerIds 배열에서 모든 담당 강사 찾기 (하위 호환성: assignedTrainerId도 확인)
+    const trainerIds = program.assignedTrainerIds || (program.assignedTrainerId ? [program.assignedTrainerId] : []);
+    const assignedTrainers = trainers.filter(t => trainerIds.includes(t.id));
     const programSessions = allSessions.filter(s => s.programId === program.id);
     const remainingSessions = program.totalSessions - program.completedSessions;
     
@@ -117,7 +119,11 @@ export const ProgramTable: React.FC<ProgramTableProps> = ({
           </div>
           <div>
             <span className="text-slate-500">담당 강사:</span>
-            <span className="ml-1 font-medium">{assignedTrainer?.name || '미배정'}</span>
+            <span className="ml-1 font-medium">
+              {assignedTrainers.length > 0 
+                ? assignedTrainers.map(t => t.name).join(', ')
+                : '미배정'}
+            </span>
           </div>
           <div>
             <span className="text-slate-500">총 세션:</span>

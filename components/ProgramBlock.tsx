@@ -59,7 +59,9 @@ export const ProgramRow: React.FC<ProgramRowProps> = ({ program, members, sessio
 
   const remainingSessions = program.totalSessions - program.completedSessions;
   const programSessions = allSessions.filter(s => s.programId === program.id);
-  const assignedTrainer = trainers.find(t => t.id === program.assignedTrainerId);
+  // assignedTrainerIds 배열에서 모든 담당 강사 찾기 (하위 호환성: assignedTrainerId도 확인)
+  const trainerIds = program.assignedTrainerIds || (program.assignedTrainerId ? [program.assignedTrainerId] : []);
+  const assignedTrainers = trainers.filter(t => trainerIds.includes(t.id));
   
   const programMembers = members.filter(m => program.memberIds.includes(m.id));
 
@@ -75,8 +77,9 @@ export const ProgramRow: React.FC<ProgramRowProps> = ({ program, members, sessio
     if (!currentUser) return false;
     if (currentUser.role === 'admin' || currentUser.role === 'manager') return true;
     if (currentUser.role === 'trainer') {
-      const userTrainerProfile = trainers.find(t => t.id === currentUser.trainerProfileId);
-      return userTrainerProfile?.id === program.assignedTrainerId;
+      // assignedTrainerIds 배열에서 확인 (하위 호환성: assignedTrainerId도 확인)
+      const trainerIds = program.assignedTrainerIds || (program.assignedTrainerId ? [program.assignedTrainerId] : []);
+      return trainerIds.includes(currentUser.trainerProfileId || '');
     }
     return false;
   }
@@ -110,8 +113,12 @@ export const ProgramRow: React.FC<ProgramRowProps> = ({ program, members, sessio
       <TableCell className="px-4 py-3 text-sm text-slate-600 text-left">{program.programName}</TableCell>
       <TableCell className="px-4 py-3 text-sm text-slate-600 text-left">{program.registrationDate}</TableCell>
       <TableCell className="px-4 py-3 text-sm text-center">
-        {assignedTrainer ? (
-          <DraggableTrainer trainer={assignedTrainer} programId={program.id} />
+        {assignedTrainers.length > 0 ? (
+          <div className="flex flex-wrap items-center justify-center gap-1">
+            {assignedTrainers.map(trainer => (
+              <DraggableTrainer key={trainer.id} trainer={trainer} programId={program.id} />
+            ))}
+          </div>
         ) : (
           <span className="text-slate-400 text-xs italic">미배정</span>
         )}

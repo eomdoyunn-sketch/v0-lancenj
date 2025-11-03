@@ -49,7 +49,8 @@ const initialProgramFormData = {
   totalAmount: '',
   totalSessions: '',
   status: '유효' as ProgramStatus,
-  assignedTrainerId: '',
+  assignedTrainerId: '', // 하위 호환성을 위해 유지
+  assignedTrainerIds: [] as string[], // 담당 강사 ID 배열 (여러 명 선택 가능)
   sessionTrainers: {} as { [sessionNumber: number]: string }, // 회차별 강사 선택
   memo: '',
   defaultSessionDuration: '50',
@@ -243,18 +244,24 @@ const App: React.FC = () => {
                 setTrainers(filteredTrainers);
                 console.log('App.tsx - 지점 전체 강사들:', filteredTrainers.map(t => ({ name: t.name, color: t.color, id: t.id })));
 
-                // Filter programs by trainer assignment
-                const filteredPrograms = allPrograms.filter(p => 
-                    p.assignedTrainerId === currentUser.trainerProfileId
-                );
+                // Filter programs by trainer assignment (assignedTrainerIds 배열 확인)
+                const filteredPrograms = allPrograms.filter(p => {
+                    const trainerIds = p.assignedTrainerIds || (p.assignedTrainerId ? [p.assignedTrainerId] : []);
+                    return trainerIds.includes(currentUser.trainerProfileId || '');
+                });
 
                 // Filter members by assigned trainer (only members assigned to this trainer)
                 const filteredMembers = allMembers.filter(m => 
                     m.assignedTrainerId === currentUser.trainerProfileId
                 );
 
-                // Filter sessions: only own sessions (ScheduleCalendar will handle branch-wide sessions for trainer view)
-                const filteredSessions = sessionsData.filter(s => s.trainerId === currentUser.trainerProfileId);
+                // Filter sessions: own sessions + sessions from programs where this trainer is assigned
+                // (여러 강사가 담당한 프로그램의 세션도 함께 볼 수 있어야 함)
+                const trainerProgramIds = filteredPrograms.map(p => p.id);
+                const filteredSessions = sessionsData.filter(s => 
+                    s.trainerId === currentUser.trainerProfileId || 
+                    trainerProgramIds.includes(s.programId)
+                );
                 console.log('App.tsx - 본인 세션들:', filteredSessions.length);
 
                 // Filter presets by trainer's branches
@@ -505,11 +512,15 @@ const App: React.FC = () => {
   const handleOpenProgramModal = (program: MemberProgram | null) => {
     setProgramToEdit(program);
     if (program) {
+        // 기존 데이터에서 assignedTrainerIds 추출 (하위 호환성: assignedTrainerId가 있으면 배열로 변환)
+        const trainerIds = program.assignedTrainerIds || (program.assignedTrainerId ? [program.assignedTrainerId] : []);
+        
         setProgramFormData({
             ...program,
             totalAmount: String(program.totalAmount),
             totalSessions: String(program.totalSessions),
-            assignedTrainerId: program.assignedTrainerId || '',
+            assignedTrainerId: program.assignedTrainerId || '', // 하위 호환성
+            assignedTrainerIds: trainerIds,
             sessionTrainers: program.sessionTrainers || {},
             memo: program.memo || '',
             defaultSessionDuration: String(program.defaultSessionDuration || 50),
@@ -519,7 +530,7 @@ const App: React.FC = () => {
             ? currentUser.assignedBranchIds[0] 
             : (branches.length > 0 ? branches[0].id : '');
         
-        // 트레이너의 경우 본인이 기본 담당 강사로 설정
+        // 트레이너의 경우 본인이 기본 담당 강사로 설정 (하지만 여러 명 선택 가능)
         const defaultTrainerId = (currentUser?.role === 'trainer' && currentUser.trainerProfileId) 
             ? currentUser.trainerProfileId 
             : '';
@@ -527,7 +538,8 @@ const App: React.FC = () => {
         setProgramFormData({
             ...initialProgramFormData,
             branchId: defaultBranchId,
-            assignedTrainerId: defaultTrainerId,
+            assignedTrainerId: defaultTrainerId, // 하위 호환성 (첫 번째 강사)
+            assignedTrainerIds: defaultTrainerId ? [defaultTrainerId] : [], // 여러 명 선택 가능하지만 기본값은 본인만
         });
     }
     setProgramModalOpen(true);
@@ -552,7 +564,21 @@ const App: React.FC = () => {
 
     if (name === 'branchId') {
         newFormData.memberIds = [];
-        newFormData.assignedTrainerId = '';
+        
+        // 선택된 지점의 강사만 유지 (다른 지점의 강사는 제거)
+        const selectedBranchId = value;
+        if (selectedBranchId) {
+            const validTrainerIds = trainers
+                .filter(t => t.isActive && t.branchIds.includes(selectedBranchId))
+                .map(t => t.id);
+            
+            // 선택된 강사 중에서 선택된 지점에 속한 강사만 유지
+            newFormData.assignedTrainerIds = programFormData.assignedTrainerIds.filter(id => validTrainerIds.includes(id));
+            newFormData.assignedTrainerId = newFormData.assignedTrainerIds.length > 0 ? newFormData.assignedTrainerIds[0] : '';
+        } else {
+            newFormData.assignedTrainerId = '';
+            newFormData.assignedTrainerIds = [];
+        }
         
         const form = target.closest('form');
         if (form) {
@@ -613,8 +639,9 @@ const App: React.FC = () => {
             return;
           }
         } else if (currentUser?.role === 'trainer') {
-          // 트레이너인 경우, 본인이 담당하는 프로그램만 수정 가능
-          if (programToEdit.assignedTrainerId !== currentUser.trainerProfileId) {
+          // 트레이너인 경우, 본인이 담당하는 프로그램만 수정 가능 (assignedTrainerIds 배열 확인)
+          const trainerIds = programToEdit.assignedTrainerIds || (programToEdit.assignedTrainerId ? [programToEdit.assignedTrainerId] : []);
+          if (!trainerIds.includes(currentUser.trainerProfileId || '')) {
             alert('본인이 담당하는 프로그램만 수정할 수 있습니다.');
             return;
           }
@@ -630,7 +657,8 @@ const App: React.FC = () => {
           totalAmount: totalAmount,
           totalSessions: totalSessions,
           status: programFormData.status,
-          assignedTrainerId: programFormData.assignedTrainerId || undefined,
+          assignedTrainerId: programFormData.assignedTrainerId || undefined, // 하위 호환성
+          assignedTrainerIds: programFormData.assignedTrainerIds.length > 0 ? programFormData.assignedTrainerIds : undefined,
           sessionTrainers: programFormData.sessionTrainers, // 회차별 강사 정보
           memo: programFormData.memo,
           defaultSessionDuration: Number(programFormData.defaultSessionDuration),
@@ -1157,12 +1185,15 @@ const App: React.FC = () => {
       }
     }
 
-    // 해당 강사가 배정된 프로그램이 있는지 확인
-    const assignedPrograms = programs.filter(p => p.assignedTrainerId === trainerId);
+    // 해당 강사가 배정된 프로그램이 있는지 확인 (assignedTrainerIds 배열 포함)
+    const assignedPrograms = programs.filter(p => {
+      const trainerIds = p.assignedTrainerIds || (p.assignedTrainerId ? [p.assignedTrainerId] : []);
+      return trainerIds.includes(trainerId);
+    });
     
     if (assignedPrograms.length > 0) {
       const programNames = assignedPrograms.map(p => p.programName).join(', ');
-      if (!window.confirm(`${trainerToDelete.name} 강사는 ${programNames} 프로그램에 배정되어 있습니다.\n강사를 삭제하면 해당 프로그램들의 담당 강사가 해제됩니다.\n정말 삭제하시겠습니까?`)) {
+      if (!window.confirm(`${trainerToDelete.name} 강사는 ${programNames} 프로그램에 배정되어 있습니다.\n강사를 삭제하면 해당 프로그램들의 담당 강사 목록에서 제거됩니다.\n정말 삭제하시겠습니까?`)) {
         return;
       }
     }
@@ -1171,14 +1202,30 @@ const App: React.FC = () => {
         const success = await DataManager.deleteTrainer(trainerId);
         if (success) {
           setTrainers(trainers.filter(t => t.id !== trainerId));
-          // 관련 프로그램들의 담당 강사 해제
+          // 관련 프로그램들의 담당 강사 목록에서 제거
           if (assignedPrograms.length > 0) {
             for (const program of assignedPrograms) {
-              await DataManager.updateProgram(program.id, { assignedTrainerId: undefined });
+              const trainerIds = program.assignedTrainerIds || (program.assignedTrainerId ? [program.assignedTrainerId] : []);
+              const updatedTrainerIds = trainerIds.filter(id => id !== trainerId);
+              const newFirstTrainerId = updatedTrainerIds.length > 0 ? updatedTrainerIds[0] : undefined;
+              
+              await DataManager.updateProgram(program.id, { 
+                assignedTrainerIds: updatedTrainerIds.length > 0 ? updatedTrainerIds : undefined,
+                assignedTrainerId: newFirstTrainerId // 하위 호환성
+              });
             }
-            setPrograms(programs.map(p => 
-              p.assignedTrainerId === trainerId ? { ...p, assignedTrainerId: undefined } : p
-            ));
+            setPrograms(programs.map(p => {
+              const trainerIds = p.assignedTrainerIds || (p.assignedTrainerId ? [p.assignedTrainerId] : []);
+              if (trainerIds.includes(trainerId)) {
+                const updatedTrainerIds = trainerIds.filter(id => id !== trainerId);
+                return { 
+                  ...p, 
+                  assignedTrainerIds: updatedTrainerIds.length > 0 ? updatedTrainerIds : undefined,
+                  assignedTrainerId: updatedTrainerIds.length > 0 ? updatedTrainerIds[0] : undefined
+                };
+              }
+              return p;
+            }));
           }
           await addAuditLog('삭제', '강사', trainerToDelete.name, '강사 정보를 삭제했습니다.', trainerToDelete.branchIds[0]);
           // 데이터 새로고침
@@ -1777,7 +1824,15 @@ const App: React.FC = () => {
                 try {
                     // 해당 프로그램에서 강사를 해제
                     console.log('DataManager.updateProgram 호출 중...');
-                    const updatedProgram = await DataManager.updateProgram(targetProgram.id, { assignedTrainerId: null });
+                    // 프로그램에서 강사 제거 (assignedTrainerIds 배열에서 제거)
+                    const currentTrainerIds = targetProgram.assignedTrainerIds || (targetProgram.assignedTrainerId ? [targetProgram.assignedTrainerId] : []);
+                    const updatedTrainerIds = currentTrainerIds.filter(id => id !== draggedTrainer.id);
+                    const newFirstTrainerId = updatedTrainerIds.length > 0 ? updatedTrainerIds[0] : null;
+                    
+                    const updatedProgram = await DataManager.updateProgram(targetProgram.id, { 
+                      assignedTrainerIds: updatedTrainerIds.length > 0 ? updatedTrainerIds : undefined,
+                      assignedTrainerId: newFirstTrainerId // 하위 호환성
+                    });
                     console.log('DataManager.updateProgram 결과:', updatedProgram);
                     
                     if (updatedProgram) {
@@ -1887,7 +1942,16 @@ const App: React.FC = () => {
             alert('비활성 상태의 강사는 배정할 수 없습니다.');
             return;
         }
-        const updatedProgram = await DataManager.updateProgram(program.id, { assignedTrainerId: trainer.id });
+        // 프로그램에 강사 추가 (assignedTrainerIds 배열에 추가)
+        const currentTrainerIds = program.assignedTrainerIds || (program.assignedTrainerId ? [program.assignedTrainerId] : []);
+        const updatedTrainerIds = currentTrainerIds.includes(trainer.id) 
+          ? currentTrainerIds 
+          : [...currentTrainerIds, trainer.id];
+        
+        const updatedProgram = await DataManager.updateProgram(program.id, { 
+          assignedTrainerIds: updatedTrainerIds,
+          assignedTrainerId: updatedTrainerIds[0] // 하위 호환성
+        });
         if (updatedProgram) {
           setPrograms(programs.map(p => p.id === updatedProgram.id ? updatedProgram : p));
           await addAuditLog('수정', '프로그램', updatedProgram.programName, `${updatedProgram.programName}에 ${trainer.name} 강사를 배정했습니다.`, updatedProgram.branchId);
@@ -1953,7 +2017,9 @@ const App: React.FC = () => {
     const matches = (
       p.status === programFilter.status &&
       (programFilter.search === '' || p.programName.toLowerCase().includes(searchLower) || memberName.includes(searchLower)) &&
-      (programFilter.trainerId === '' || p.assignedTrainerId === programFilter.trainerId) &&
+      (programFilter.trainerId === '' || 
+        p.assignedTrainerId === programFilter.trainerId || 
+        (p.assignedTrainerIds && p.assignedTrainerIds.includes(programFilter.trainerId))) &&
       (programFilter.branchId === '' || p.branchId === programFilter.branchId)
     );
     
@@ -2032,7 +2098,7 @@ const App: React.FC = () => {
       <Header currentView={currentView} setCurrentView={setViewWithPermissions} currentUser={currentUser} branches={branches} onLogout={handleLogout} onOpenSettings={() => setSettingsModalOpen(true)} />
       <div className="flex flex-1 overflow-hidden">
         <main className="flex-1 flex overflow-hidden">
-          {currentView === 'programs' && <ProgramTable programs={filteredPrograms} members={members} sessions={sessions} allSessions={allSessions} trainers={filteredTrainersForDisplay} onAddProgram={() => handleOpenProgramModal(null)} onEditProgram={handleOpenProgramModal} onReRegisterProgram={(p) => handleOpenProgramModal({...p, id: ``, registrationType: '재등록', completedSessions: 0, status: '유효'})} onDeleteProgram={handleDeleteProgram} onSessionClick={handleSessionClick} filter={programFilter} setFilter={handleSetProgramFilter} allBranches={branches} onShowTooltip={(content, rect) => setTooltip({ content, rect })} onHideTooltip={() => setTooltip(null)} currentUser={currentUser} />}
+          {currentView === 'programs' && <ProgramTable programs={filteredPrograms} members={members} sessions={sessions} allSessions={allSessions} trainers={trainers} onAddProgram={() => handleOpenProgramModal(null)} onEditProgram={handleOpenProgramModal} onReRegisterProgram={(p) => handleOpenProgramModal({...p, id: ``, registrationType: '재등록', completedSessions: 0, status: '유효'})} onDeleteProgram={handleDeleteProgram} onSessionClick={handleSessionClick} filter={programFilter} setFilter={handleSetProgramFilter} allBranches={branches} onShowTooltip={(content, rect) => setTooltip({ content, rect })} onHideTooltip={() => setTooltip(null)} currentUser={currentUser} />}
           {currentView === 'dashboard' && <Dashboard trainers={filteredTrainersForDisplay} sessions={sessions} allSessions={allSessions} programs={programs} members={members} startDate={filterStartDate} endDate={filterEndDate} setStartDate={setFilterStartDate} setEndDate={setFilterEndDate} onTrainerClick={(trainerId) => { 
             const t = trainers.find(t=>t.id===trainerId); 
             if(t) {
@@ -2176,19 +2242,30 @@ const App: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700">회원 선택</label>
+              <label className="block text-sm font-medium text-slate-700">회원 선택 (여러 명 선택 가능)</label>
               <div className="mt-2 space-y-2 max-h-32 overflow-y-auto border border-slate-300 rounded-md p-2">
                 {members.filter(member => {
-                  // 프로그램 수정 시에도 모든 회원을 선택할 수 있도록 변경
+                  // 지점 필터링: 선택된 지점의 회원만 표시
+                  if (programFormData.branchId && member.branchId !== programFormData.branchId) {
+                    return false;
+                  }
+                  
                   // 트레이너의 경우 본인이 담당하는 회원만 표시
                   if (currentUser?.role === 'trainer' && currentUser.trainerProfileId) {
                     return member.assignedTrainerId === currentUser.trainerProfileId;
                   }
-                  // 프로그램에서 담당 강사가 선택된 경우, 해당 강사의 회원만 표시
+                  
+                  // 프로그램에서 담당 강사가 선택된 경우, 선택된 강사 중 하나라도 해당 강사의 회원인 경우 표시
+                  if (programFormData.assignedTrainerIds.length > 0) {
+                    return programFormData.assignedTrainerIds.includes(member.assignedTrainerId || '');
+                  }
+                  
+                  // 하위 호환성: assignedTrainerId가 있으면 해당 강사의 회원만 표시
                   if (programFormData.assignedTrainerId) {
                     return member.assignedTrainerId === programFormData.assignedTrainerId;
                   }
-                  // 관리자/매니저는 모든 회원 표시
+                  
+                  // 관리자/매니저는 선택된 지점의 모든 회원 표시 (지점이 선택된 경우)
                   return true;
                 }).map(member => (
                   <label key={member.id} className="flex items-center">
@@ -2303,22 +2380,7 @@ const App: React.FC = () => {
                           className="w-full px-2 py-1 text-sm border border-slate-300 rounded-md shadow-sm"
                         >
                           <option value="">강사 선택</option>
-                          {filteredTrainersForModal.filter(trainer => {
-                            // 트레이너의 경우
-                            if (currentUser?.role === 'trainer' && currentUser.trainerProfileId) {
-                              // 신규 등록 시에는 본인만 표시
-                              if (!programToEdit) {
-                                return trainer.id === currentUser.trainerProfileId;
-                              }
-                              // 수정 시에는 지점 전체 강사 표시
-                              const currentTrainer = trainers.find(t => t.id === currentUser.trainerProfileId);
-                              if (currentTrainer) {
-                                return trainer.branchIds.some(branchId => currentTrainer.branchIds.includes(branchId));
-                              }
-                            }
-                            // 관리자/매니저는 모든 강사 표시
-                            return true;
-                          }).map(trainer => (
+                          {filteredTrainersForModal.map(trainer => (
                             <option key={trainer.id} value={trainer.id}>{trainer.name}</option>
                           ))}
                         </select>
@@ -2378,45 +2440,40 @@ const App: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-3 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700">담당 강사</label>
-                <select
-                  value={programFormData.assignedTrainerId}
-                  onChange={(e) => {
-                    const selectedTrainerId = e.target.value;
-                    setProgramFormData(prev => ({ 
-                      ...prev, 
-                      assignedTrainerId: selectedTrainerId,
-                      // 프로그램 수정 시에는 회원 목록을 유지하되, 담당 강사만 변경
-                      // 신규 등록 시에만 회원 목록을 필터링
-                      memberIds: programToEdit ? prev.memberIds : (selectedTrainerId ? prev.memberIds.filter(memberId => {
-                        const member = members.find(m => m.id === memberId);
-                        return member && member.assignedTrainerId === selectedTrainerId;
-                      }) : [])
-                    }));
-                  }}
-                  className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm"
-                >
-                  <option value="">강사 선택</option>
-                  {filteredTrainersForModal.filter(trainer => {
-                    // 트레이너의 경우
-                    if (currentUser?.role === 'trainer' && currentUser.trainerProfileId) {
-                      // 신규 등록 시에는 본인만 표시
-                      if (!programToEdit) {
-                        return trainer.id === currentUser.trainerProfileId;
-                      }
-                      // 수정 시에는 지점 전체 강사 표시
-                      const currentTrainer = trainers.find(t => t.id === currentUser.trainerProfileId);
-                      if (currentTrainer) {
-                        return trainer.branchIds.some(branchId => currentTrainer.branchIds.includes(branchId));
-                      }
-                    }
-                    // 관리자/매니저는 모든 강사 표시
-                    return true;
-                  }).map(trainer => (
-                    <option key={trainer.id} value={trainer.id}>{trainer.name}</option>
+              <div className="col-span-1">
+                <label className="block text-sm font-medium text-slate-700 mb-2">담당 강사 (여러 명 선택 가능)</label>
+                <div className="mt-2 space-y-2 max-h-40 overflow-y-auto border border-slate-300 rounded-md p-2">
+                  {filteredTrainersForModal.map(trainer => (
+                    <label key={trainer.id} className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={programFormData.assignedTrainerIds.includes(trainer.id)}
+                        onChange={(e) => {
+                          const trainerId = trainer.id;
+                          setProgramFormData(prev => {
+                            const newTrainerIds = prev.assignedTrainerIds.includes(trainerId)
+                              ? prev.assignedTrainerIds.filter(id => id !== trainerId)
+                              : [...prev.assignedTrainerIds, trainerId];
+                            
+                            // 하위 호환성: 첫 번째 강사를 assignedTrainerId에 저장
+                            const firstTrainerId = newTrainerIds.length > 0 ? newTrainerIds[0] : '';
+                            
+                            return { 
+                              ...prev,
+                              assignedTrainerIds: newTrainerIds,
+                              assignedTrainerId: firstTrainerId,
+                            };
+                          });
+                        }}
+                        className="mr-2"
+                      />
+                      <span>{trainer.name}</span>
+                    </label>
                   ))}
-                </select>
+                  {filteredTrainersForModal.length === 0 && (
+                    <p className="text-sm text-slate-500">선택 가능한 강사가 없습니다. 지점을 먼저 선택해주세요.</p>
+                  )}
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700">지점</label>
